@@ -1,0 +1,145 @@
+@import 'tailwindcss';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  min-height: 100vh;
+  background-color: #09090b;
+  color: #fafafa;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #e1ff01;
+  color: #000;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border: 2px solid #09090b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Subtle grid background pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(39, 39, 42, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(39, 39, 42, 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Blinking cursor for empty-state terminal */
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.cursor-blink::after {
+  content: '_';
+  margin-left: 4px;
+  animation: blink 1.1s steps(1) infinite;
+  color: #e1ff01;
+}
+
+/* Row enter animation */
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.row-in {
+  animation: rowIn 180ms ease-out;
+}
+
+/* Pulse on stat update */
+@keyframes statFlash {
+  0% {
+    background-color: rgba(225, 255, 1, 0.18);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.stat-flash {
+  animation: statFlash 600ms ease-out;
+}
+
+/* Inputs reset */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* Native select arrow tweak */
+select {
+  background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AA' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>\");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 2rem;
+}
+
+@theme {
+  /* Colors */
+  --color-background: #09090b;
+  --color-surface: #121214;
+  --color-surface-hover: #1c1c1f;
+  --color-border: #27272a;
+  --color-primary: #e1ff01;
+  --color-primary-foreground: #000000;
+  --color-text-main: #fafafa;
+  --color-text-muted: #a1a1aa;
+  --color-success: #32d74b;
+  --color-danger: #ff453a;
+
+  /* Font Families */
+  --font-heading: 'Chivo', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Letter Spacing */
+  --tracking-widest: 0.2em;
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a transparent;
+  }
+}
+
+@variant dark (&:where(.dark, .dark *));
