@@ -10,16 +10,19 @@ const direction = ref('Long')
 const strategy = ref('')
 const notes = ref('')
 const justSubmitted = ref(false)
+const pnl = ref('')
 
 const isValid = computed(() => symbol.value.trim().length > 0 && direction.value && strategy.value)
 
 const onSubmit = () => {
   if (!isValid.value) return
+  const parsedPnl = pnl.value === '' || pnl.value === '-' ? null : Number(pnl.value)
   emit('submit', {
     symbol: symbol.value.trim().toUpperCase(),
     direction: direction.value,
     strategy: strategy.value,
     notes: notes.value.trim(),
+    pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
   })
   // Reset
   symbol.value = ''
@@ -27,6 +30,7 @@ const onSubmit = () => {
   strategy.value = ''
   notes.value = ''
   justSubmitted.value = true
+  pnl.value = ''
   setTimeout(() => (justSubmitted.value = false), 1200)
 }
 </script>
@@ -117,6 +121,36 @@ const onSubmit = () => {
           {{ s }}
         </option>
       </select>
+    </div>
+
+    <!-- Realized PNL -->
+    <div class="flex flex-col gap-1.5">
+      <label
+        for="pnl"
+        class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+      >
+        Realized PNL
+      </label>
+      <div class="relative">
+        <span
+          class="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-text-muted/60 pointer-events-none"
+        >
+          $
+        </span>
+        <input
+          id="pnl"
+          v-model="pnl"
+          type="number"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="0.00"
+          class="w-full bg-transparent border border-border pl-7 pr-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
+          data-testid="trade-pnl-input"
+        />
+      </div>
+      <!-- <span class="font-mono text-[10px] text-text-muted/60 tracking-wide">
+        Optional · use negative for losses
+      </span> -->
     </div>
 
     <!-- Notes -->

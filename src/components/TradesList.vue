@@ -55,6 +55,16 @@ const formatDateTime = (d) => {
     hour12: true,
   })
 }
+
+const formatPnl = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return null
+  const sign = n > 0 ? '+' : n < 0 ? '−' : ''
+  const abs = Math.abs(n).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `${sign}$${abs}`
+}
 </script>
 
 <template>
@@ -132,6 +142,11 @@ const formatDateTime = (d) => {
               class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
             >
               Notes
+            </th>
+            <th
+              class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
+            >
+              Realized PNL
             </th>
             <th class="w-12 px-4 py-3"></th>
           </tr>
@@ -223,6 +238,22 @@ const formatDateTime = (d) => {
                   >
                 </div>
               </div>
+            </td>
+            <td
+              class="px-4 py-3 text-center font-mono text-sm font-bold tabular-nums whitespace-nowrap"
+              :data-testid="`trade-pnl-${trade.id}`"
+            >
+              <span
+                v-if="trade.pnl !== null && trade.pnl !== undefined"
+                :class="[
+                  trade.pnl > 0 && 'text-success',
+                  trade.pnl < 0 && 'text-danger',
+                  trade.pnl === 0 && 'text-text-muted',
+                ]"
+              >
+                {{ formatPnl(trade.pnl) }}
+              </span>
+              <span v-else class="text-text-muted/40 font-mono text-xs">—</span>
             </td>
             <td class="px-4 py-3 text-right">
               <button
