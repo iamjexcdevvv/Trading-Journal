@@ -2,14 +2,11 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import NavigationSidebar from './components/NavigationSidebar.vue'
-import StatsBar from './components/StatsBar.vue'
 import { Menu } from 'lucide-vue-next'
 import { useTrades } from './composables/useTrades.js'
 
-const { stats } = useTrades()
 const route = useRoute()
 
-const showStatsBar = computed(() => route.path === '/trade-logging')
 const isMobileSidebarOpen = ref(false)
 
 const toggleMobileSidebar = () => {
@@ -51,8 +48,6 @@ const closeMobileSidebar = () => {
           </span>
         </div>
       </div>
-
-      <StatsBar v-if="showStatsBar" :stats="stats" />
 
       <div class="hidden md:flex items-center gap-2 font-mono text-xs text-text-muted">
         <span class="w-2 h-2 bg-success animate-pulse"></span>
