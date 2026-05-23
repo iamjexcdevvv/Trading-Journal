@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { TrendingUp, TrendingDown, Target, DollarSign, BarChart3 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps({
   trades: { type: Array, required: true },
@@ -8,46 +8,63 @@ const props = defineProps({
 
 const hasTrades = computed(() => props.trades.length > 0)
 
+// Date navigation state
+const currentDate = ref(new Date())
+
+const currentYear = computed(() => currentDate.value.getFullYear())
+const currentMonth = computed(() => currentDate.value.getMonth())
+
+const navigateMonth = (delta) => {
+  const newDate = new Date(currentDate.value)
+  newDate.setMonth(newDate.getMonth() + delta)
+  currentDate.value = newDate
+}
+
+const navigateYear = (delta) => {
+  const newDate = new Date(currentDate.value)
+  newDate.setFullYear(newDate.getFullYear() + delta)
+  currentDate.value = newDate
+}
+
+const goToToday = () => {
+  currentDate.value = new Date()
+}
+
+const formatMonthYear = () => {
+  return currentDate.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
 const pnlStats = computed(() => {
   const tradesWithPnl = props.trades.filter((t) => t.pnl !== null && t.pnl !== undefined)
   const totalTrades = tradesWithPnl.length
   
   if (totalTrades === 0) {
     return {
-      totalPnl: 0,
       winRate: 0,
-      averageWin: 0,
-      averageLoss: 0,
-      totalWins: 0,
-      totalLosses: 0,
-      largestWin: 0,
-      largestLoss: 0,
+      pnl1Day: 0,
+      pnl7Days: 0,
     }
   }
 
   const wins = tradesWithPnl.filter((t) => t.pnl > 0)
-  const losses = tradesWithPnl.filter((t) => t.pnl < 0)
+  const winRate = (wins.length / totalTrades) * 100
   
-  const totalPnl = tradesWithPnl.reduce((sum, t) => sum + t.pnl, 0)
-  const totalWins = wins.length
-  const totalLosses = losses.length
-  const winRate = (totalWins / totalTrades) * 100
+  const now = new Date()
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+  const pnl1Day = tradesWithPnl
+    .filter((t) => new Date(t.createdAt) >= oneDayAgo)
+    .reduce((sum, t) => sum + t.pnl, 0)
   
-  const averageWin = totalWins > 0 ? wins.reduce((sum, t) => sum + t.pnl, 0) / totalWins : 0
-  const averageLoss = totalLosses > 0 ? losses.reduce((sum, t) => sum + t.pnl, 0) / totalLosses : 0
-  
-  const largestWin = wins.length > 0 ? Math.max(...wins.map((t) => t.pnl)) : 0
-  const largestLoss = losses.length > 0 ? Math.min(...losses.map((t) => t.pnl)) : 0
+  const pnl7Days = tradesWithPnl
+    .filter((t) => new Date(t.createdAt) >= sevenDaysAgo)
+    .reduce((sum, t) => sum + t.pnl, 0)
 
   return {
-    totalPnl,
     winRate,
-    averageWin,
-    averageLoss,
-    totalWins,
-    totalLosses,
-    largestWin,
-    largestLoss,
+    pnl1Day,
+    pnl7Days,
   }
 })
 
@@ -89,6 +106,79 @@ const directionBreakdown = computed(() => {
   }
 })
 
+const pnlCalendar = computed(() => {
+  const calendar = {}
+  const year = currentYear.value
+  const month = currentMonth.value
+  
+  // Get first and last day of selected month
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  
+  // Initialize all days in the selected month
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const date = new Date(year, month, day)
+    const dateKey = date.toISOString().split('T')[0]
+    calendar[dateKey] = { pnl: 0, trades: 0 }
+  }
+  
+  // Fill in trade data for selected month
+  props.trades.forEach((trade) => {
+    if (trade.pnl !== null && trade.pnl !== undefined) {
+      const tradeDate = new Date(trade.createdAt)
+      if (tradeDate.getFullYear() === year && tradeDate.getMonth() === month) {
+        const dateKey = tradeDate.toISOString().split('T')[0]
+        if (calendar[dateKey]) {
+          calendar[dateKey].pnl += trade.pnl
+          calendar[dateKey].trades++
+        }
+      }
+    }
+  })
+  
+  return Object.entries(calendar).map(([date, data]) => ({
+    date,
+    ...data,
+  }))
+})
+
+const monthPnlStats = computed(() => {
+  const year = currentYear.value
+  const month = currentMonth.value
+  
+  const monthTrades = props.trades.filter((t) => {
+    const tradeDate = new Date(t.createdAt)
+    return tradeDate.getFullYear() === year && tradeDate.getMonth() === month
+  })
+  
+  const tradesWithPnl = monthTrades.filter((t) => t.pnl !== null && t.pnl !== undefined)
+  const totalTrades = tradesWithPnl.length
+  
+  if (totalTrades === 0) {
+    return {
+      totalPnl: 0,
+      winRate: 0,
+      totalWins: 0,
+      totalLosses: 0,
+      totalTrades: 0,
+    }
+  }
+  
+  const wins = tradesWithPnl.filter((t) => t.pnl > 0)
+  const losses = tradesWithPnl.filter((t) => t.pnl < 0)
+  
+  const totalPnl = tradesWithPnl.reduce((sum, t) => sum + t.pnl, 0)
+  const winRate = (wins.length / totalTrades) * 100
+  
+  return {
+    totalPnl,
+    winRate,
+    totalWins: wins.length,
+    totalLosses: losses.length,
+    totalTrades,
+  }
+})
+
 const formatPnl = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return '$0.00'
   const sign = n > 0 ? '+' : n < 0 ? '−' : ''
@@ -103,6 +193,11 @@ const formatPercent = (n) => {
   return `${n.toFixed(1)}%`
 }
 
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 const getBarWidth = (value, max) => {
   if (max === 0) return 0
   return Math.abs((value / max) * 100)
@@ -110,6 +205,11 @@ const getBarWidth = (value, max) => {
 
 const maxStrategyPnl = computed(() => {
   const values = strategyBreakdown.value.map((s) => Math.abs(s.pnl))
+  return values.length > 0 ? Math.max(...values) : 1
+})
+
+const maxCalendarPnl = computed(() => {
+  const values = pnlCalendar.value.map((d) => Math.abs(d.pnl))
   return values.length > 0 ? Math.max(...values) : 1
 })
 </script>
@@ -162,31 +262,8 @@ const maxStrategyPnl = computed(() => {
 
     <!-- Content -->
     <div v-else class="lg:ml-34 flex-1 overflow-auto p-6">
-      <!-- Overview Stats -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <!-- Total PnL -->
-        <div
-          class="border border-border bg-surface/40 p-4"
-          data-testid="stat-total-pnl"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <DollarSign :size="16" :stroke-width="2" class="text-text-muted" />
-            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted">
-              Total PnL
-            </span>
-          </div>
-          <span
-            :class="[
-              'font-mono font-bold text-2xl tabular-nums',
-              pnlStats.totalPnl > 0 && 'text-success',
-              pnlStats.totalPnl < 0 && 'text-danger',
-              pnlStats.totalPnl === 0 && 'text-text-muted',
-            ]"
-          >
-            {{ formatPnl(pnlStats.totalPnl) }}
-          </span>
-        </div>
-
+      <!-- Time-based Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <!-- Win Rate -->
         <div class="border border-border bg-surface/40 p-4" data-testid="stat-win-rate">
           <div class="flex items-center gap-2 mb-2">
@@ -200,146 +277,248 @@ const maxStrategyPnl = computed(() => {
           </span>
         </div>
 
-        <!-- Average Win -->
-        <div class="border border-border bg-surface/40 p-4" data-testid="stat-avg-win">
+        <!-- 1 Day PnL -->
+        <div class="border border-border bg-surface/40 p-4" data-testid="stat-1day-pnl">
           <div class="flex items-center gap-2 mb-2">
-            <TrendingUp :size="16" :stroke-width="2" class="text-success" />
+            <Calendar :size="16" :stroke-width="2" class="text-text-muted" />
             <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted">
-              Avg Win
+              1 Day PnL
             </span>
           </div>
-          <span class="font-mono font-bold text-2xl tabular-nums text-success">
-            {{ formatPnl(pnlStats.averageWin) }}
+          <span
+            :class="[
+              'font-mono font-bold text-2xl tabular-nums',
+              pnlStats.pnl1Day > 0 && 'text-success',
+              pnlStats.pnl1Day < 0 && 'text-danger',
+              pnlStats.pnl1Day === 0 && 'text-text-muted',
+            ]"
+          >
+            {{ formatPnl(pnlStats.pnl1Day) }}
           </span>
         </div>
 
-        <!-- Average Loss -->
-        <div class="border border-border bg-surface/40 p-4" data-testid="stat-avg-loss">
+        <!-- 7 Days PnL -->
+        <div class="border border-border bg-surface/40 p-4" data-testid="stat-7days-pnl">
           <div class="flex items-center gap-2 mb-2">
-            <TrendingDown :size="16" :stroke-width="2" class="text-danger" />
+            <Calendar :size="16" :stroke-width="2" class="text-text-muted" />
             <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted">
-              Avg Loss
+              7 Days PnL
             </span>
           </div>
-          <span class="font-mono font-bold text-2xl tabular-nums text-danger">
-            {{ formatPnl(pnlStats.averageLoss) }}
+          <span
+            :class="[
+              'font-mono font-bold text-2xl tabular-nums',
+              pnlStats.pnl7Days > 0 && 'text-success',
+              pnlStats.pnl7Days < 0 && 'text-danger',
+              pnlStats.pnl7Days === 0 && 'text-text-muted',
+            ]"
+          >
+            {{ formatPnl(pnlStats.pnl7Days) }}
           </span>
         </div>
       </div>
 
-      <!-- Additional Stats -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <!-- Direction Breakdown -->
-        <div class="border border-border bg-surface/40 p-4" data-testid="direction-breakdown">
-          <div class="flex items-center gap-2 mb-4">
-            <BarChart3 :size="16" :stroke-width="2" class="text-text-muted" />
+      <!-- PnL Calendar -->
+      <div class="border border-border bg-surface/40 p-4 mb-8" data-testid="pnl-calendar">
+        <!-- Calendar Header with Navigation -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <Calendar :size="16" :stroke-width="2" class="text-text-muted" />
             <span class="font-heading font-black text-sm tracking-widest uppercase">
-              Direction Breakdown
+              PnL Calendar
             </span>
           </div>
-          <div class="space-y-4">
-            <!-- Long -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-mono text-xs text-text-muted tracking-wider uppercase">
-                  Long
-                </span>
-                <span class="font-mono text-xs text-text-muted">
-                  {{ directionBreakdown.long.count }} trades
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-success transition-all duration-300"
-                    :style="{
-                      width: `${getBarWidth(directionBreakdown.long.pnl, maxStrategyPnl)}%`,
-                    }"
-                  ></div>
-                </div>
-                <span
-                  :class="[
-                    'font-mono text-xs tabular-nums',
-                    directionBreakdown.long.pnl > 0 && 'text-success',
-                    directionBreakdown.long.pnl < 0 && 'text-danger',
-                  ]"
-                >
-                  {{ formatPnl(directionBreakdown.long.pnl) }}
-                </span>
-              </div>
-            </div>
-            <!-- Short -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-mono text-xs text-text-muted tracking-wider uppercase">
-                  Short
-                </span>
-                <span class="font-mono text-xs text-text-muted">
-                  {{ directionBreakdown.short.count }} trades
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-danger transition-all duration-300"
-                    :style="{
-                      width: `${getBarWidth(directionBreakdown.short.pnl, maxStrategyPnl)}%`,
-                    }"
-                  ></div>
-                </div>
-                <span
-                  :class="[
-                    'font-mono text-xs tabular-nums',
-                    directionBreakdown.short.pnl > 0 && 'text-success',
-                    directionBreakdown.short.pnl < 0 && 'text-danger',
-                  ]"
-                >
-                  {{ formatPnl(directionBreakdown.short.pnl) }}
-                </span>
-              </div>
-            </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="navigateYear(-1)"
+              class="p-1 text-text-muted hover:text-text-main transition-colors"
+              title="Previous year"
+            >
+              <ChevronLeft :size="16" :stroke-width="2" />
+            </button>
+            <button
+              @click="navigateMonth(-1)"
+              class="p-1 text-text-muted hover:text-text-main transition-colors"
+              title="Previous month"
+            >
+              <ChevronLeft :size="16" :stroke-width="2" />
+            </button>
+            <span class="font-mono text-sm font-bold text-text-main min-w-[140px] text-center">
+              {{ formatMonthYear() }}
+            </span>
+            <button
+              @click="navigateMonth(1)"
+              class="p-1 text-text-muted hover:text-text-main transition-colors"
+              title="Next month"
+            >
+              <ChevronRight :size="16" :stroke-width="2" />
+            </button>
+            <button
+              @click="navigateYear(1)"
+              class="p-1 text-text-muted hover:text-text-main transition-colors"
+              title="Next year"
+            >
+              <ChevronRight :size="16" :stroke-width="2" />
+            </button>
+            <button
+              @click="goToToday"
+              class="ml-2 px-2 py-1 text-[10px] font-mono tracking-wider uppercase border border-border hover:border-primary hover:text-primary transition-colors"
+            >
+              Today
+            </button>
           </div>
         </div>
 
-        <!-- Performance Summary -->
-        <div class="border border-border bg-surface/40 p-4" data-testid="performance-summary">
-          <div class="flex items-center gap-2 mb-4">
-            <Target :size="16" :stroke-width="2" class="text-text-muted" />
-            <span class="font-heading font-black text-sm tracking-widest uppercase">
-              Performance Summary
+        <!-- Month Stats -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-3 bg-surface/30 rounded">
+          <div>
+            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+              Month PnL
+            </span>
+            <span
+              :class="[
+                'font-mono font-bold text-lg tabular-nums',
+                monthPnlStats.totalPnl > 0 && 'text-success',
+                monthPnlStats.totalPnl < 0 && 'text-danger',
+                monthPnlStats.totalPnl === 0 && 'text-text-muted',
+              ]"
+            >
+              {{ formatPnl(monthPnlStats.totalPnl) }}
             </span>
           </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
-                Total Wins
+          <div>
+            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+              Win Rate
+            </span>
+            <span class="font-mono font-bold text-lg tabular-nums text-primary">
+              {{ formatPercent(monthPnlStats.winRate) }}
+            </span>
+          </div>
+          <div>
+            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+              Trades
+            </span>
+            <span class="font-mono font-bold text-lg tabular-nums text-text-main">
+              {{ monthPnlStats.totalTrades }}
+            </span>
+          </div>
+          <div>
+            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+              W/L
+            </span>
+            <span class="font-mono font-bold text-lg tabular-nums">
+              <span class="text-success">{{ monthPnlStats.totalWins }}</span
+              >/<span class="text-danger">{{ monthPnlStats.totalLosses }}</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div class="grid grid-cols-7 gap-2">
+          <div
+            v-for="day in pnlCalendar"
+            :key="day.date"
+            class="relative group"
+          >
+            <div
+              :class="[
+                'h-16 rounded border border-border flex flex-col items-center justify-center transition-all duration-200',
+                day.pnl > 0 && 'bg-success/10 border-success/30',
+                day.pnl < 0 && 'bg-danger/10 border-danger/30',
+                day.pnl === 0 && 'bg-surface/40',
+              ]"
+            >
+              <span class="font-mono text-[10px] text-text-muted mb-1">
+                {{ formatDate(day.date) }}
               </span>
-              <span class="font-mono font-bold text-lg tabular-nums text-success">
-                {{ pnlStats.totalWins }}
+              <span
+                :class="[
+                  'font-mono text-xs font-bold tabular-nums',
+                  day.pnl > 0 && 'text-success',
+                  day.pnl < 0 && 'text-danger',
+                  day.pnl === 0 && 'text-text-muted/40',
+                ]"
+              >
+                {{ formatPnl(day.pnl) }}
               </span>
             </div>
-            <div>
-              <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
-                Total Losses
+            <!-- Tooltip -->
+            <div
+              v-if="day.trades > 0"
+              class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10"
+            >
+              {{ day.trades }} trade{{ day.trades > 1 ? 's' : '' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direction Breakdown -->
+      <div class="border border-border bg-surface/40 p-4 mb-8" data-testid="direction-breakdown">
+        <div class="flex items-center gap-2 mb-4">
+          <BarChart3 :size="16" :stroke-width="2" class="text-text-muted" />
+          <span class="font-heading font-black text-sm tracking-widest uppercase">
+            Direction Breakdown
+          </span>
+        </div>
+        <div class="space-y-4">
+          <!-- Long -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-mono text-xs text-text-muted tracking-wider uppercase">
+                Long
               </span>
-              <span class="font-mono font-bold text-lg tabular-nums text-danger">
-                {{ pnlStats.totalLosses }}
+              <span class="font-mono text-xs text-text-muted">
+                {{ directionBreakdown.long.count }} trades
               </span>
             </div>
-            <div>
-              <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
-                Largest Win
-              </span>
-              <span class="font-mono font-bold text-lg tabular-nums text-success">
-                {{ formatPnl(pnlStats.largestWin) }}
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-success transition-all duration-300"
+                  :style="{
+                    width: `${getBarWidth(directionBreakdown.long.pnl, maxStrategyPnl)}%`,
+                  }"
+                ></div>
+              </div>
+              <span
+                :class="[
+                  'font-mono text-xs tabular-nums',
+                  directionBreakdown.long.pnl > 0 && 'text-success',
+                  directionBreakdown.long.pnl < 0 && 'text-danger',
+                ]"
+              >
+                {{ formatPnl(directionBreakdown.long.pnl) }}
               </span>
             </div>
-            <div>
-              <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
-                Largest Loss
+          </div>
+          <!-- Short -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-mono text-xs text-text-muted tracking-wider uppercase">
+                Short
               </span>
-              <span class="font-mono font-bold text-lg tabular-nums text-danger">
-                {{ formatPnl(pnlStats.largestLoss) }}
+              <span class="font-mono text-xs text-text-muted">
+                {{ directionBreakdown.short.count }} trades
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-danger transition-all duration-300"
+                  :style="{
+                    width: `${getBarWidth(directionBreakdown.short.pnl, maxStrategyPnl)}%`,
+                  }"
+                ></div>
+              </div>
+              <span
+                :class="[
+                  'font-mono text-xs tabular-nums',
+                  directionBreakdown.short.pnl > 0 && 'text-success',
+                  directionBreakdown.short.pnl < 0 && 'text-danger',
+                ]"
+              >
+                {{ formatPnl(directionBreakdown.short.pnl) }}
               </span>
             </div>
           </div>
