@@ -27,7 +27,7 @@ export function useTrades() {
 }
 
 export const STRATEGIES = {
-  Long: ['Trendline Breakout', 'Horizontal Breakout', 'Tabo Play'],
-  Short: ['Trendline Breakdown', 'Horizontal Breakdown', 'Tabo Play'],
+  Long: ['Trendline Breakout', 'Bounce Play', 'Tabo Play'],
+  Short: ['Trendline Breakdown', 'Correction Play', 'Tabo Play'],
 }
 
