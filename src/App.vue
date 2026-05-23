@@ -1,16 +1,23 @@
 <script setup>
-import { ref } from 'vue'
-import AddTradeForm from './components/AddTradeForm.vue'
-import TradesList from './components/TradesList.vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import NavigationSidebar from './components/NavigationSidebar.vue'
 import StatsBar from './components/StatsBar.vue'
+import { Menu } from 'lucide-vue-next'
 import { useTrades } from './composables/useTrades.js'
 
-const { trades, addTrade, removeTrade, stats } = useTrades()
-const lastAddedId = ref(null)
+const { stats } = useTrades()
+const route = useRoute()
 
-const handleAdd = (payload) => {
-  addTrade(payload)
-  lastAddedId.value = trades.value[0]?.id
+const showStatsBar = computed(() => route.path === '/trade-logging')
+const isMobileSidebarOpen = ref(false)
+
+const toggleMobileSidebar = () => {
+  isMobileSidebarOpen.value = !isMobileSidebarOpen.value
+}
+
+const closeMobileSidebar = () => {
+  isMobileSidebarOpen.value = false
 }
 </script>
 
@@ -22,6 +29,15 @@ const handleAdd = (payload) => {
       data-testid="app-header"
     >
       <div class="flex items-center gap-3">
+        <!-- Hamburger Menu Button (Mobile) -->
+        <button
+          @click="toggleMobileSidebar"
+          class="lg:hidden p-2 text-text-muted hover:text-text-main"
+          data-testid="hamburger-menu-btn"
+        >
+          <Menu :size="24" :stroke-width="2" />
+        </button>
+
         <div
           class="w-8 h-8 bg-primary text-primary-foreground font-heading font-black flex items-center justify-center text-lg"
           aria-hidden="true"
@@ -36,7 +52,7 @@ const handleAdd = (payload) => {
         </div>
       </div>
 
-      <StatsBar :stats="stats" />
+      <StatsBar v-if="showStatsBar" :stats="stats" />
 
       <div class="hidden md:flex items-center gap-2 font-mono text-xs text-text-muted">
         <span class="w-2 h-2 bg-success animate-pulse"></span>
@@ -45,18 +61,24 @@ const handleAdd = (payload) => {
     </header>
 
     <!-- ===== MAIN GRID ===== -->
-    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
-      <!-- Sidebar / Action Zone -->
-      <aside
-        class="lg:col-span-4 xl:col-span-3 border-b lg:border-b-0 lg:border-r border-border bg-surface/40"
-        data-testid="action-sidebar"
-      >
-        <AddTradeForm @submit="handleAdd" />
-      </aside>
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-11 min-h-0 relative">
+      <!-- Mobile Overlay -->
+      <div
+        v-if="isMobileSidebarOpen"
+        @click="closeMobileSidebar"
+        class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        data-testid="mobile-overlay"
+      ></div>
 
-      <!-- Ledger -->
-      <section class="lg:col-span-8 xl:col-span-9 grid-bg min-h-[60vh]" data-testid="ledger-area">
-        <TradesList :trades="trades" :last-added-id="lastAddedId" @delete="removeTrade" />
+      <!-- Navigation Sidebar -->
+      <NavigationSidebar
+        :is-mobile-open="isMobileSidebarOpen"
+        @close="closeMobileSidebar"
+      />
+
+      <!-- Router View -->
+      <section class="lg:col-span-10 min-h-0">
+        <router-view />
       </section>
     </main>
 

@@ -69,21 +69,6 @@ const formatPnl = (n) => {
 
 <template>
   <div class="h-full flex flex-col" data-testid="trades-list">
-    <!-- Header -->
-    <div
-      class="px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
-    >
-      <div class="flex items-center gap-3">
-        <span class="font-heading font-black text-sm tracking-widest uppercase"> Ledger </span>
-        <span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
-          {{ trades.length }} {{ trades.length === 1 ? 'entry' : 'entries' }}
-        </span>
-      </div>
-      <span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
-        // OUTPUT
-      </span>
-    </div>
-
     <!-- Empty state -->
     <div
       v-if="!hasTrades"
@@ -114,7 +99,7 @@ const formatPnl = (n) => {
     </div>
 
     <!-- Table -->
-    <div v-else class="flex-1 overflow-auto">
+    <div v-else class="lg:ml-34 flex-1 overflow-auto">
       <table class="w-full border-collapse" data-testid="trades-table">
         <thead class="sticky top-0 z-10 bg-background/95 backdrop-blur">
           <tr class="border-b border-border">
