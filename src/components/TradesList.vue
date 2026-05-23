@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Trash2, ArrowUpRight, ArrowDownRight } from 'lucide-vue-next'
 
 const props = defineProps({

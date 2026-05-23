@@ -1,11 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref } from 'vue'
 import NavigationSidebar from './components/NavigationSidebar.vue'
 import { Menu } from 'lucide-vue-next'
-import { useTrades } from './composables/useTrades.js'
-
-const route = useRoute()
 
 const isMobileSidebarOpen = ref(false)
 
