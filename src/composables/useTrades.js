@@ -26,10 +26,8 @@ export function useTrades() {
   return { trades, addTrade, removeTrade, stats }
 }
 
-export const STRATEGIES = [
-  'Trendline Breakout',
-  'Trendline Breakdown',
-  'Horizontal Breakout',
-  'Horizontal Breakdown',
-  'Tabo Play',
-]
+export const STRATEGIES = {
+  Long: ['Trendline Breakout', 'Horizontal Breakout', 'Tabo Play'],
+  Short: ['Trendline Breakdown', 'Horizontal Breakdown', 'Tabo Play'],
+}
+

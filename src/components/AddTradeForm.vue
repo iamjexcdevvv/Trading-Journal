@@ -117,7 +117,7 @@ const onSubmit = () => {
         data-testid="trade-strategy-select"
       >
         <option value="" disabled class="bg-background">Select strategy…</option>
-        <option v-for="s in STRATEGIES" :key="s" :value="s" class="bg-background text-text-main">
+        <option v-for="s in STRATEGIES[direction]" :key="s" :value="s" class="bg-background text-text-main">
           {{ s }}
         </option>
       </select>
@@ -125,10 +125,7 @@ const onSubmit = () => {
 
     <!-- Realized PNL -->
     <div class="flex flex-col gap-1.5">
-      <label
-        for="pnl"
-        class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-      >
+      <label for="pnl" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">
         Realized PNL
       </label>
       <div class="relative">
@@ -148,9 +145,6 @@ const onSubmit = () => {
           data-testid="trade-pnl-input"
         />
       </div>
-      <!-- <span class="font-mono text-[10px] text-text-muted/60 tracking-wide">
-        Optional · use negative for losses
-      </span> -->
     </div>
 
     <!-- Notes -->
