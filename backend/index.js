@@ -12,10 +12,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/trade', (req, res) => {
-    // Handle trade submission
-    saveTrade(req.body)
-});
+app.post('/api/trade', saveTrade);
 
 const tradeSchema = new mongoose.Schema({
     date: Date,
@@ -28,9 +25,14 @@ const tradeSchema = new mongoose.Schema({
 
 const Trade = mongoose.model('Trade', tradeSchema);
 
-async function saveTrade(tradeData) {
-    const newTrade = new Trade(tradeData);
-    await newTrade.save();
+async function saveTrade(req, res) {
+    try {
+        const newTrade = new Trade(req.body);
+        await newTrade.save();
+        res.status(201).json(newTrade);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
 }
 
 async function connectDB()
