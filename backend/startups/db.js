@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 module.exports = async function () {
     try {
-        await mongoose.connect('mongodb://localhost:27017/trade-journal');
+        await mongoose.connect(`${process.env.MONGODB_URI}`);
         console.log('Connected to MongoDB');
     }
     catch (err) {
