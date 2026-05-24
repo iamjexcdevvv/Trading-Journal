@@ -24,6 +24,9 @@ const onSubmit = () => {
     notes: notes.value.trim(),
     pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
   })
+
+  saveTrade(symbol, direction, strategy, notes, pnl)
+
   // Reset
   symbol.value = ''
   direction.value = 'Long'
@@ -32,6 +35,27 @@ const onSubmit = () => {
   justSubmitted.value = true
   pnl.value = ''
   setTimeout(() => (justSubmitted.value = false), 1200)
+}
+
+const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
+  try {
+    const response = await fetch('http://localhost:3000/api/trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: new Date(),
+        symbol: symbol.value.trim().toUpperCase(),
+        direction: direction.value,
+        strategy: strategy.value,
+        notes: notes.value.trim(),
+        realizedPnl: Number(pnl.value) || null,
+      }),
+    })
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+  } catch (error) {
+    console.error('Failed to save trade:', error)
+  }
 }
 </script>
 
@@ -117,7 +141,12 @@ const onSubmit = () => {
         data-testid="trade-strategy-select"
       >
         <option value="" disabled class="bg-background">Select strategy…</option>
-        <option v-for="s in STRATEGIES[direction]" :key="s" :value="s" class="bg-background text-text-main">
+        <option
+          v-for="s in STRATEGIES[direction]"
+          :key="s"
+          :value="s"
+          class="bg-background text-text-main"
+        >
           {{ s }}
         </option>
       </select>

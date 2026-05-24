@@ -27,9 +27,13 @@ const closeModal = () => {
 <template>
   <div class="h-full flex flex-col min-h-0">
     <!-- Header with Add Trade Button -->
-    <div class="lg:ml-34 px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur">
+    <div
+      class="lg:ml-34 px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
+    >
       <div class="flex items-center gap-3">
-        <span class="font-heading font-black text-sm tracking-widest uppercase"> Trade Logging </span>
+        <span class="font-heading font-black text-sm tracking-widest uppercase">
+          Trade Logging
+        </span>
         <span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
           {{ trades.length }} {{ trades.length === 1 ? 'entry' : 'entries' }}
         </span>
