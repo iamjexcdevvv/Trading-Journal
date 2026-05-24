@@ -36,7 +36,7 @@ const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
     symbol.value = symbol.value.trim().toUpperCase()
     notes.value = notes.value.trim()
 
-    const response = await fetch('http://localhost:3000/api/trade', {
+    const response = await fetch('http://localhost:3000/api/trades', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

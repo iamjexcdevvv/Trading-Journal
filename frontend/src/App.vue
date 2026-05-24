@@ -17,14 +17,18 @@ const closeMobileSidebar = () => {
 }
 
 onMounted(async () => {
-  const response = await fetch('http://localhost:3000/api/trades')
+  try {
+    const response = await fetch('http://localhost:3000/api/trades')
 
-  if (response.ok) {
-    const trades = await response.json()
+    if (response.ok) {
+      const trades = await response.json()
 
-    trades.forEach((trade) => addTrade(trade))
-  } else {
-    console.error('Failed to fetch trades:', response.statusText)
+      trades.forEach((trade) => addTrade(trade))
+    } else {
+      console.error('Failed to fetch trades:', response.statusText)
+    }
+  } catch (error) {
+    console.error('Error fetching trades:', error)
   }
 })
 </script>
@@ -53,7 +57,7 @@ onMounted(async () => {
           L
         </div>
         <div class="flex flex-col leading-tight">
-          <span class="font-heading font-black tracking-tight text-base"> LEDGER </span>
+          <span class="font-heading font-black tracking-tight text-base"> Plan2Profit </span>
           <span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
             Trading Journal · v0.1
           </span>

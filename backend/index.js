@@ -1,90 +1,16 @@
-const mongoose = require('mongoose');
 const express = require('express');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
 
+require('./startups/db')();
+
 const app = express();
 
 app.use(morgan('dev'));
-
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
 
-app.post('/api/trade', saveTrade);
-app.get('/api/trades', getTrades)
-app.delete('/api/trade/:id', deleteTrade);
-
-app.put('/api/trade/notes/:id', updateTradeNotes);
-
-const tradeSchema = new mongoose.Schema({
-    date: Date,
-    symbol: String,
-    direction: String,
-    strategy: String,
-    notes: String,
-    pnl: Number,
-});
-
-const Trade = mongoose.model('Trade', tradeSchema);
-
-async function updateTradeNotes(req, res) {
-    try {
-        const { id } = req.params;
-        const { notes } = req.body;
-
-        const updatedTrade = await Trade.findByIdAndUpdate(id, {$set: { notes }}, { new: true, runValidators: true });
-        if (!updatedTrade) {
-            return res.status(404).json({ error: 'Trade not found' });
-        }
-        res.status(200).json(updatedTrade);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-}
-
-async function getTrades(req, res) {
-    try {
-        const trades = await Trade.find();
-        res.status(200).json(trades);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-}
-
-async function deleteTrade(req, res) {
-    try {
-        const { id } = req.params;
-        await Trade.deleteOne({ _id: id });
-        res.status(200).json({ message: 'Trade deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-}
-
-async function saveTrade(req, res) {
-    try {
-        const newTrade = new Trade(req.body);
-        await newTrade.save();
-        res.status(201).json(newTrade);
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
-}
-
-async function connectDB()
-{
-    try {
-        await mongoose.connect('mongodb://localhost:27017/trade-journal');
-        console.log('Connected to MongoDB');
-    }
-    catch (err) {
-        console.error('Failed to connect to MongoDB', err);
-    }
-}
-
-connectDB();
+require('./startups/routes')(app);
 
 app.listen(3000, () => {
     console.log('Server is running on port 3000');

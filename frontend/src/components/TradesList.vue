@@ -28,7 +28,7 @@ const saveNote = async (trade) => {
   try {
     trade.notes = editingNoteValue.value.trim()
 
-    const response = await fetch(`http://localhost:3000/api/trade/notes/${trade._id}`, {
+    const response = await fetch(`http://localhost:3000/api/trades/notes/${trade._id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes: trade.notes }),
