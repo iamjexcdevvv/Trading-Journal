@@ -16,18 +16,11 @@ const isValid = computed(() => symbol.value.trim().length > 0 && direction.value
 
 const onSubmit = () => {
   if (!isValid.value) return
-  const parsedPnl = pnl.value === '' || pnl.value === '-' ? null : Number(pnl.value)
-  emit('submit', {
-    symbol: symbol.value.trim().toUpperCase(),
-    direction: direction.value,
-    strategy: strategy.value,
-    notes: notes.value.trim(),
-    pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
-  })
 
   saveTrade(symbol, direction, strategy, notes, pnl)
+}
 
-  // Reset
+const resetInputs = () => {
   symbol.value = ''
   direction.value = 'Long'
   strategy.value = ''
@@ -39,20 +32,38 @@ const onSubmit = () => {
 
 const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
   try {
+    const parsedPnl = pnl.value === '' || pnl.value === '-' ? null : Number(pnl.value)
+    symbol.value = symbol.value.trim().toUpperCase()
+    notes.value = notes.value.trim()
+
     const response = await fetch('http://localhost:3000/api/trade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: new Date(),
-        symbol: symbol.value.trim().toUpperCase(),
+        symbol: symbol.value,
         direction: direction.value,
         strategy: strategy.value,
-        notes: notes.value.trim(),
-        realizedPnl: Number(pnl.value) || null,
+        notes: notes.value,
+        pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
       }),
     })
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+
+    const { _id } = await response.json()
+
+    emit('submit', {
+      symbol: symbol.value,
+      direction: direction.value,
+      strategy: strategy.value,
+      notes: notes.value,
+      pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
+      _id,
+    })
+
+    // Reset
+    resetInputs()
   } catch (error) {
     console.error('Failed to save trade:', error)
   }

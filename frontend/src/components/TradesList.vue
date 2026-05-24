@@ -243,7 +243,7 @@ const formatPnl = (n) => {
             <td class="px-4 py-3 text-right">
               <button
                 type="button"
-                @click="$emit('delete', trade.id)"
+                @click="$emit('delete', trade.id, trade._id)"
                 :data-testid="`delete-trade-btn-${trade.id}`"
                 class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
                 aria-label="Delete trade"

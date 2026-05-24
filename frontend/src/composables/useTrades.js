@@ -7,7 +7,7 @@ export function useTrades() {
   const addTrade = (trade) => {
     trades.value.unshift({
       id: crypto.randomUUID(),
-      createdAt: new Date(),
+      createdAt: trade.date || new Date(),
       ...trade,
     })
   }

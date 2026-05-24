@@ -10,9 +10,24 @@ const lastAddedId = ref(null)
 const isModalOpen = ref(false)
 
 const handleAdd = (payload) => {
+  console.log(payload)
   addTrade(payload)
   lastAddedId.value = trades.value[0]?.id
   isModalOpen.value = false
+}
+
+const handleRemoveTrade = async (id, _id) => {
+  const response = await fetch(`http://localhost:3000/api/trade/${_id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  if (!response.ok) {
+    console.error(`Failed to delete trade with id ${_id}:`, response.statusText)
+    return;
+  }
+
+  removeTrade(id)
 }
 
 const openModal = () => {
@@ -50,7 +65,7 @@ const closeModal = () => {
 
     <!-- Ledger -->
     <section class="flex-1 grid-bg min-h-[60vh]" data-testid="ledger-area">
-      <TradesList :trades="trades" :last-added-id="lastAddedId" @delete="removeTrade" />
+      <TradesList :trades="trades" :last-added-id="lastAddedId" @delete="handleRemoveTrade" />
     </section>
 
     <!-- Add Trade Modal -->

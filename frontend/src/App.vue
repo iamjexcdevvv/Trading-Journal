@@ -1,7 +1,10 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import NavigationSidebar from './components/NavigationSidebar.vue'
 import { Menu } from 'lucide-vue-next'
+import { useTrades } from './composables/useTrades.js'
+
+const { addTrade } = useTrades()
 
 const isMobileSidebarOpen = ref(false)
 
@@ -12,6 +15,18 @@ const toggleMobileSidebar = () => {
 const closeMobileSidebar = () => {
   isMobileSidebarOpen.value = false
 }
+
+onMounted(async () => {
+  const response = await fetch('http://localhost:3000/api/trades')
+
+  if (response.ok) {
+    const trades = await response.json()
+
+    trades.forEach((trade) => addTrade(trade))
+  } else {
+    console.error('Failed to fetch trades:', response.statusText)
+  }
+})
 </script>
 
 <template>
@@ -62,10 +77,7 @@ const closeMobileSidebar = () => {
       ></div>
 
       <!-- Navigation Sidebar -->
-      <NavigationSidebar
-        :is-mobile-open="isMobileSidebarOpen"
-        @close="closeMobileSidebar"
-      />
+      <NavigationSidebar :is-mobile-open="isMobileSidebarOpen" @close="closeMobileSidebar" />
 
       <!-- Router View -->
       <section class="lg:col-span-10 min-h-0">

@@ -13,6 +13,8 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/api/trade', saveTrade);
+app.get('/api/trades', getTrades)
+app.delete('/api/trade/:id', deleteTrade);
 
 const tradeSchema = new mongoose.Schema({
     date: Date,
@@ -20,10 +22,29 @@ const tradeSchema = new mongoose.Schema({
     direction: String,
     strategy: String,
     notes: String,
-    realizedPnl: Number,
+    pnl: Number,
 });
 
 const Trade = mongoose.model('Trade', tradeSchema);
+
+async function getTrades(req, res) {
+    try {
+        const trades = await Trade.find();
+        res.status(200).json(trades);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
+async function deleteTrade(req, res) {
+    try {
+        const { id } = req.params;
+        await Trade.deleteOne({ _id: id });
+        res.status(200).json({ message: 'Trade deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
 
 async function saveTrade(req, res) {
     try {
