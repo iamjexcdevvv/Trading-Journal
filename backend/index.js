@@ -16,6 +16,8 @@ app.post('/api/trade', saveTrade);
 app.get('/api/trades', getTrades)
 app.delete('/api/trade/:id', deleteTrade);
 
+app.put('/api/trade/notes/:id', updateTradeNotes);
+
 const tradeSchema = new mongoose.Schema({
     date: Date,
     symbol: String,
@@ -26,6 +28,21 @@ const tradeSchema = new mongoose.Schema({
 });
 
 const Trade = mongoose.model('Trade', tradeSchema);
+
+async function updateTradeNotes(req, res) {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+
+        const updatedTrade = await Trade.findByIdAndUpdate(id, {$set: { notes }}, { new: true, runValidators: true });
+        if (!updatedTrade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+        res.status(200).json(updatedTrade);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
 
 async function getTrades(req, res) {
     try {

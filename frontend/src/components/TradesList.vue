@@ -22,11 +22,25 @@ const startEdit = (trade) => {
   editingNoteValue.value = trade.notes || ''
 }
 
-const saveNote = (trade) => {
+const saveNote = async (trade) => {
   if (isCancelling.value) return
 
-  trade.notes = editingNoteValue.value.trim()
-  // TODO: persist to backend here
+  try {
+    trade.notes = editingNoteValue.value.trim()
+
+    const response = await fetch(`http://localhost:3000/api/trade/notes/${trade._id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: trade.notes }),
+    })
+
+    if (!response.ok) {
+      console.error(`Failed to update trade with id ${trade._id}:`, response.statusText)
+    }
+  } catch (error) {
+    console.error('Error updating trade notes:', error)
+  }
+
   editingNoteId.value = null
 }
 
