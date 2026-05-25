@@ -12,7 +12,9 @@ export const AVAILABLE_TAGS = [
     'FOMO',
     'revenge trade',
     'Overtrading',
-    'news trade'
+    'news trade',
+    'grade a+ Setup',
+    'grade b Setup',
 ];
 
 export function useTrades() {
