@@ -97,7 +97,6 @@ onMounted(async () => {
             class="border-t border-border px-6 h-10 flex items-center justify-between text-[11px] font-mono text-text-muted tracking-widest uppercase"
             data-testid="app-footer"
         >
-            <span>// In-Memory Mode · Data clears on refresh</span>
             <span class="hidden sm:inline">Made for traders who keep score</span>
         </footer>
     </div>

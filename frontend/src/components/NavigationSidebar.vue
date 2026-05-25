@@ -92,7 +92,7 @@ const closeSidebar = () => {
         <!-- Footer -->
         <div class="px-6 py-4 border-t border-border">
             <div class="font-mono text-[10px] text-text-muted/60 tracking-widest uppercase">
-                // Dashboard v1.0
+                Dashboard v1.0
             </div>
         </div>
     </aside>
