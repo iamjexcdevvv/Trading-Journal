@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { ArrowUpRight, ArrowDownRight, Check } from "lucide-vue-next";
-import { STRATEGIES } from "../composables/useTrades.js";
+import { ArrowUpRight, ArrowDownRight, Check, X } from "lucide-vue-next";
+import { STRATEGIES, AVAILABLE_TAGS } from "../composables/useTrades.js";
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 const route = useRoute();
@@ -15,6 +15,7 @@ const strategy = ref(route.query.strategy || "");
 const notes = ref(route.query.notes || "");
 const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
+const selectedTags = ref([]);
 
 // Screenshot state
 const screenshotTab = ref("file"); // 'file' | 'link'
@@ -84,8 +85,18 @@ const resetInputs = () => {
     notes.value = "";
     justSubmitted.value = true;
     pnl.value = "";
+    selectedTags.value = [];
     clearScreenshot();
     setTimeout(() => (justSubmitted.value = false), 1200);
+};
+
+const toggleTag = (tag) => {
+    const index = selectedTags.value.indexOf(tag);
+    if (index === -1) {
+        selectedTags.value.push(tag);
+    } else {
+        selectedTags.value.splice(index, 1);
+    }
 };
 
 const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
@@ -105,6 +116,7 @@ const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
                 notes: notes.value,
                 pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
                 screenshot: screenshot.value,
+                tags: selectedTags.value,
             }),
         });
 
@@ -119,6 +131,7 @@ const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
             notes: notes.value,
             pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
             screenshot: screenshot.value,
+            tags: selectedTags.value,
             _id,
         });
 
@@ -227,6 +240,46 @@ const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
                     {{ s }}
                 </option>
             </select>
+        </div>
+
+        <!-- Tags -->
+        <div class="flex flex-col gap-1.5">
+            <span class="font-mono text-[10px] tracking-widest uppercase text-text-muted">
+                Tags
+            </span>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    v-for="tag in AVAILABLE_TAGS"
+                    :key="tag"
+                    type="button"
+                    @click="toggleTag(tag)"
+                    :class="[
+                        'px-3 py-1.5 border font-mono text-xs tracking-wider uppercase transition-colors',
+                        selectedTags.includes(tag)
+                            ? 'border-primary text-primary bg-primary/10'
+                            : 'border-border text-text-muted hover:text-text-main hover:border-primary/50'
+                    ]"
+                    data-testid="tag-btn"
+                >
+                    {{ tag }}
+                </button>
+            </div>
+            <div v-if="selectedTags.length > 0" class="flex flex-wrap gap-1 mt-1">
+                <span
+                    v-for="tag in selectedTags"
+                    :key="tag"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-mono tracking-wider uppercase rounded border border-primary/30"
+                >
+                    {{ tag }}
+                    <button
+                        type="button"
+                        @click="toggleTag(tag)"
+                        class="hover:text-primary-foreground"
+                    >
+                        <X :size="10" :stroke-width="2.5" />
+                    </button>
+                </span>
+            </div>
         </div>
 
         <!-- Realized PNL -->

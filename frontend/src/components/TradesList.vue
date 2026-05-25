@@ -212,9 +212,22 @@ const handleEscape = (e) => {
                         :data-testid="`trade-row-${trade.id}`"
                     >
                         <td
-                            class="px-6 py-3 font-mono text-xs text-text-muted tabular-nums whitespace-nowrap"
+                            class="px-6 py-3"
                         >
-                            {{ formatDateTime(trade.createdAt) }}
+                            <div class="flex flex-col gap-1">
+                                <span class="font-mono text-xs text-text-muted tabular-nums whitespace-nowrap">
+                                    {{ formatDateTime(trade.createdAt) }}
+                                </span>
+                                <div v-if="trade.tags && trade.tags.length > 0" class="flex gap-1 overflow-x-auto scrollbar-thin max-w-36">
+                                    <span
+                                        v-for="tag in trade.tags"
+                                        :key="tag"
+                                        class="px-1.5 py-0.5 bg-primary/20 text-primary text-[9px] font-mono tracking-wider uppercase rounded border border-primary/30 shrink-0"
+                                    >
+                                        {{ tag }}
+                                    </span>
+                                </div>
+                            </div>
                         </td>
                         <td
                             class="px-4 py-3 font-mono text-sm font-bold text-text-main tracking-wider whitespace-nowrap"
