@@ -52,12 +52,11 @@ onMounted(async () => {
                     <Menu :size="24" :stroke-width="2" />
                 </button>
 
-                <div
-                    class="w-8 h-8 bg-primary text-primary-foreground font-heading font-black flex items-center justify-center text-lg"
-                    aria-hidden="true"
-                >
-                    L
-                </div>
+                <img
+                    src="/logo.jpg"
+                    alt="Logo"
+                    class="w-8 h-8 object-cover rounded"
+                />
                 <div class="flex flex-col leading-tight">
                     <span class="font-heading font-black tracking-tight text-base">
                         Plan2Profit
