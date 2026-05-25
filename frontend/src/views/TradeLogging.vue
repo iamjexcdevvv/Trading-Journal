@@ -1,13 +1,17 @@
 <script setup>
 import { ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Plus } from "lucide-vue-next";
 import TradesList from "../components/TradesList.vue";
 import AddTradeModal from "../components/AddTradeModal.vue";
 import { useTrades } from "../composables/useTrades.js";
 
+const route = useRoute();
+const router = useRouter();
+
 const { trades, addTrade, removeTrade } = useTrades();
 const lastAddedId = ref(null);
-const isModalOpen = ref(false);
+const isModalOpen = ref(route.query.autoOpen === "true");
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -15,6 +19,7 @@ const handleAdd = (payload) => {
 	addTrade(payload);
 	lastAddedId.value = trades.value[0]?.id;
 	isModalOpen.value = false;
+	router.replace({ query: {} }); // Clear query params from URL
 };
 
 const handleRemoveTrade = async (id, _id) => {
@@ -37,6 +42,7 @@ const openModal = () => {
 
 const closeModal = () => {
 	isModalOpen.value = false;
+	router.replace({ query: {} }); // Clear query params from URL
 };
 </script>
 

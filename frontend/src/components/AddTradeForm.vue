@@ -1,18 +1,20 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useRoute } from "vue-router";
 import { ArrowUpRight, ArrowDownRight, Check } from "lucide-vue-next";
 import { STRATEGIES } from "../composables/useTrades.js";
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const route = useRoute();
 
 const emit = defineEmits(["submit"]);
 
-const symbol = ref("");
-const direction = ref("Long");
-const strategy = ref("");
-const notes = ref("");
+const symbol = ref(route.query.symbol || "");
+const direction = ref(route.query.direction || "Long");
+const strategy = ref(route.query.strategy || "");
+const notes = ref(route.query.notes || "");
 const justSubmitted = ref(false);
-const pnl = ref("");
+const pnl = ref(route.query.pnl || "");
 
 // Screenshot state
 const screenshotTab = ref("file"); // 'file' | 'link'
