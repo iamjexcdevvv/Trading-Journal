@@ -7,6 +7,7 @@ const tradeSchema = new mongoose.Schema({
     strategy: String,
     notes: String,
     pnl: Number,
+    screenshot: String
 });
 
 const Trade = mongoose.model('Trade', tradeSchema);

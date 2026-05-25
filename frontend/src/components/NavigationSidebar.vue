@@ -21,7 +21,7 @@ const navItems = computed(() => [
     },
     {
         path: "/pnl-analysis",
-        label: "PnL Analysis",
+        label: "Performance",
         icon: BarChart3,
         testid: "nav-pnl-analysis",
     },

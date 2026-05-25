@@ -81,6 +81,50 @@ const formatPnl = (n) => {
     });
     return `${sign}$${abs}`;
 };
+
+// Screenshot preview helpers
+const isImage = (src) => {
+    if (!src) return false;
+    if (src.startsWith("data:image/")) return true;
+    if (/tradingview\.com\/x\/[a-zA-Z0-9]+/i.test(src)) return true;
+    return /\.(jpeg|jpg|gif|png|webp|svg)/i.test(src);
+};
+
+const getDisplayImageUrl = (src) => {
+    if (!src) return "";
+    if (src.startsWith("data:image/")) return src;
+
+    const tvRegex = /tradingview\.com\/x\/([a-zA-Z0-9]+)\/?/i;
+    const match = src.match(tvRegex);
+    if (match) {
+        const id = match[1];
+        const firstChar = id.charAt(0).toLowerCase();
+        return `https://s3.tradingview.com/snapshots/${firstChar}/${id}.png`;
+    }
+    return src;
+};
+
+// Lightbox state & controls
+const lightboxImage = ref("");
+const isLightboxOpen = ref(false);
+
+const openLightbox = (src) => {
+    lightboxImage.value = getDisplayImageUrl(src);
+    isLightboxOpen.value = true;
+    document.addEventListener("keydown", handleEscape);
+};
+
+const closeLightbox = () => {
+    isLightboxOpen.value = false;
+    lightboxImage.value = "";
+    document.removeEventListener("keydown", handleEscape);
+};
+
+const handleEscape = (e) => {
+    if (e.key === "Escape") {
+        closeLightbox();
+    }
+};
 </script>
 
 <template>
@@ -143,6 +187,11 @@ const formatPnl = (n) => {
                             class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
                         >
                             Notes
+                        </th>
+                        <th
+                            class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
+                        >
+                            Screenshot
                         </th>
                         <th
                             class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
@@ -248,6 +297,29 @@ const formatPnl = (n) => {
                                 </div>
                             </div>
                         </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div v-if="trade.screenshot" class="relative flex items-center">
+                                <img
+                                    v-if="isImage(trade.screenshot)"
+                                    :src="getDisplayImageUrl(trade.screenshot)"
+                                    @click="openLightbox(trade.screenshot)"
+                                    class="w-12 h-8 object-cover rounded border border-border/80 hover:border-primary/60 cursor-zoom-in hover:scale-105 transition-all duration-150"
+                                    alt="Screenshot thumbnail"
+                                />
+                                <a
+                                    v-else
+                                    :href="trade.screenshot"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase text-primary hover:underline"
+                                >
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    <span>[Link]</span>
+                                </a>
+                            </div>
+                            <span v-else class="text-text-muted/30 font-mono text-[10px]">—</span>
+                        </td>
                         <td
                             class="px-4 py-3 text-center font-mono text-sm font-bold tabular-nums whitespace-nowrap"
                             :data-testid="`trade-pnl-${trade.id}`"
@@ -280,4 +352,47 @@ const formatPnl = (n) => {
             </table>
         </div>
     </div>
+
+    <!-- Lightbox Teleport -->
+    <Teleport to="body">
+        <Transition name="fade">
+            <div
+                v-if="isLightboxOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+                @click="closeLightbox"
+            >
+                <!-- Close Button -->
+                <button
+                    @click.stop="closeLightbox"
+                    class="absolute top-6 right-6 p-2 text-text-muted hover:text-text-main transition-colors bg-surface/50 border border-border rounded-full hover:bg-surface"
+                    aria-label="Close image viewer"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                
+                <!-- Main Image -->
+                <div class="relative max-w-full max-h-[85vh] flex items-center justify-center" @click.stop>
+                    <img
+                        :src="lightboxImage"
+                        class="max-w-full max-h-[85vh] object-contain rounded-lg border border-border shadow-2xl select-none"
+                        alt="Enlarged screenshot"
+                    />
+                </div>
+            </div>
+        </Transition>
+    </Teleport>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+</style>

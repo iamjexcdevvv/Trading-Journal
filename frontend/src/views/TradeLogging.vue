@@ -12,7 +12,6 @@ const isModalOpen = ref(false);
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
 const handleAdd = (payload) => {
-	console.log(payload);
 	addTrade(payload);
 	lastAddedId.value = trades.value[0]?.id;
 	isModalOpen.value = false;
