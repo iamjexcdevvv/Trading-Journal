@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { Trash2, ArrowUpRight, ArrowDownRight } from "lucide-vue-next";
+import { useAuth } from "@/composables/useAuth";
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 

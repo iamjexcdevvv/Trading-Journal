@@ -1,10 +1,13 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Plus, X } from "lucide-vue-next";
 import TradesList from "../components/TradesList.vue";
 import AddTradeModal from "../components/AddTradeModal.vue";
 import { useTrades, AVAILABLE_TAGS } from "../composables/useTrades.js";
+import { useAuth } from "../composables/useAuth.js";
+
+const { isLoggedIn } = useAuth();
 
 const route = useRoute();
 const router = useRouter();
@@ -72,6 +75,26 @@ const removeFilterTag = (tag) => {
 		selectedFilterTags.value.splice(index, 1);
 	}
 };
+
+onMounted(async () => {
+	if (isLoggedIn.value) {
+		try {
+			const response = await fetch(`${apiUrl}/api/trades`);
+
+			if (response.ok) {
+				const trades = await response.json();
+
+				trades.forEach((trade) => addTrade(trade));
+			} else {
+				console.error("Failed to fetch trades:", response.statusText);
+			}
+		} catch (error) {
+			console.error("Error fetching trades:", error);
+		}
+	}
+
+    console.log("TradeLogging mounted");
+});
 </script>
 
 <template>
@@ -140,7 +163,7 @@ const removeFilterTag = (tag) => {
 		</div>
 
 		<!-- Ledger -->
-		<section class="flex-1 grid-bg min-h-[60vh]" data-testid="ledger-area">
+		<section class="flex-1 grid-bg min-h-[66vh] overflow-hidden" data-testid="ledger-area">
 			<TradesList :trades="filteredTrades" :last-added-id="lastAddedId" @delete="handleRemoveTrade" />
 		</section>
 
