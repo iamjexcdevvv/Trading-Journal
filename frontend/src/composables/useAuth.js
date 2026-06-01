@@ -1,22 +1,22 @@
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 
 const token = ref(null);
 
 export function useAuth() {
-  const setToken = (newToken) => {
-    token.value = newToken;
-  };
+	const setToken = (newToken) => {
+		token.value = newToken;
+	};
 
-  const logout = () => {
-    token.value = null;
-  };
+	const logout = () => {
+		token.value = null;
+	};
 
-  const isLoggedIn = computed(() => !!token.value);
+	const isLoggedIn = computed(() => !!token.value);
 
-  return {
-    token,
-    setToken,
-    logout,
-    isLoggedIn,
-  };
+	return {
+		token,
+		setToken,
+		logout,
+		isLoggedIn,
+	};
 }
