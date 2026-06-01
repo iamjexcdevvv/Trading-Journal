@@ -118,6 +118,7 @@ const saveTrade = async (symbol, direction, strategy, notes, pnl) => {
                 screenshot: screenshot.value,
                 tags: selectedTags.value,
             }),
+            credentials: "include",
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

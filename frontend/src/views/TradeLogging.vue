@@ -79,7 +79,7 @@ const removeFilterTag = (tag) => {
 onMounted(async () => {
 	if (isLoggedIn.value) {
 		try {
-			const response = await fetch(`${apiUrl}/api/trades`);
+			const response = await fetch(`${apiUrl}/api/trades`, { credentials: "include" });
 
 			if (response.ok) {
 				const trades = await response.json();
