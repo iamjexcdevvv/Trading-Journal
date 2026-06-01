@@ -115,10 +115,19 @@ const pnlCalendar = computed(() => {
 	const firstDay = new Date(year, month, 1);
 	const lastDay = new Date(year, month + 1, 0);
 
+	// Helper function to create a consistent date key (local time)
+	const getDateKey = (date) => {
+		const d = new Date(date);
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	};
+
 	// Initialize all days in the selected month
 	for (let day = 1; day <= lastDay.getDate(); day++) {
 		const date = new Date(year, month, day);
-		const dateKey = date.toISOString().split("T")[0];
+		const dateKey = getDateKey(date);
 		calendar[dateKey] = { pnl: 0, trades: 0 };
 	}
 
@@ -127,7 +136,7 @@ const pnlCalendar = computed(() => {
 		if (trade.pnl !== null && trade.pnl !== undefined) {
 			const tradeDate = new Date(trade.createdAt);
 			if (tradeDate.getFullYear() === year && tradeDate.getMonth() === month) {
-				const dateKey = tradeDate.toISOString().split("T")[0];
+				const dateKey = getDateKey(tradeDate);
 				if (calendar[dateKey]) {
 					calendar[dateKey].pnl += trade.pnl;
 					calendar[dateKey].trades++;
