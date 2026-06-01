@@ -27,6 +27,10 @@ export function useTrades() {
         });
     };
 
+    const clearTrades = () => {        
+        trades.value = [];
+    }
+
     const removeTrade = (id) => {
         trades.value = trades.value.filter((t) => t.id !== id);
     };
@@ -38,7 +42,7 @@ export function useTrades() {
         return { total, longs, shorts };
     });
 
-    return { trades, addTrade, removeTrade, stats };
+    return { trades, addTrade, removeTrade, stats, clearTrades };
 }
 
 export const STRATEGIES = {

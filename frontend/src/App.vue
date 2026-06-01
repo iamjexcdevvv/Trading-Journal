@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
 import { Menu, LogOut } from "lucide-vue-next";
 import { useAuth } from "./composables/useAuth.js";
+import { useTrades } from "./composables/useTrades.js";
 import { useRouter } from "vue-router";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
@@ -11,6 +12,7 @@ const apiURL = import.meta.env.VITE_API_BASE_URL;
 const route = useRoute();
 const router = useRouter();
 const { logout } = useAuth();
+const { clearTrades } = useTrades();
 
 const isMobileSidebarOpen = ref(false);
 
@@ -36,6 +38,7 @@ const handleLogout = async () => {
 		console.error("Logout error:", err);
 	} finally {
 		logout();
+		clearTrades();
 		router.push("/login");
 	}
 };

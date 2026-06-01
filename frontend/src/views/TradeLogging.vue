@@ -92,8 +92,6 @@ onMounted(async () => {
 			console.error("Error fetching trades:", error);
 		}
 	}
-
-    console.log("TradeLogging mounted");
 });
 </script>
 
