@@ -64,7 +64,7 @@ const handleRegister = async () => {
 		const response = await fetch(`${apiURL}/api/auth/register`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			credentials: 'include',
+			credentials: "include",
 			body: JSON.stringify({
 				username: username.value,
 				password: password.value,
@@ -73,7 +73,7 @@ const handleRegister = async () => {
 
 		if (!response.ok) {
 			const data = await response.json();
-			console.log(data)
+			console.log(data);
 			throw new Error(data.message || "Registration failed");
 		}
 
