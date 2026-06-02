@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Trash2, ArrowUpRight, ArrowDownRight } from "lucide-vue-next";
+import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown } from "lucide-vue-next";
 import { useAuth } from "@/composables/useAuth";
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -18,6 +18,22 @@ const isCancelling = ref(false);
 
 const editingNoteId = ref(null);
 const editingNoteValue = ref("");
+
+// Sort state
+const sortOrder = ref('desc'); // 'desc' for newest first, 'asc' for oldest first
+
+const sortedTrades = computed(() => {
+	const tradesCopy = [...props.trades];
+	return tradesCopy.sort((a, b) => {
+		const dateA = new Date(a.createdAt);
+		const dateB = new Date(b.createdAt);
+		return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB;
+	});
+});
+
+const toggleSort = () => {
+	sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
+};
 
 const startEdit = (trade) => {
 	isCancelling.value = false;
@@ -167,7 +183,14 @@ const handleEscape = (e) => {
 						<th
 							class="text-left px-6 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
 						>
-							Time
+							<button
+								@click="toggleSort"
+								class="flex items-center gap-1 hover:text-text-main transition-colors cursor-pointer"
+							>
+								Time
+								<ArrowUp v-if="sortOrder === 'asc'" :size="12" :stroke-width="2" />
+								<ArrowDown v-else :size="12" :stroke-width="2" />
+							</button>
 						</th>
 						<th
 							class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
@@ -204,7 +227,7 @@ const handleEscape = (e) => {
 				</thead>
 				<tbody>
 					<tr
-						v-for="trade in trades"
+						v-for="trade in sortedTrades"
 						:key="trade.id"
 						:class="[
 							'group border-b border-border/60 hover:bg-surface-hover/60 transition-colors duration-100',
