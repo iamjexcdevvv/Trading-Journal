@@ -1,4 +1,4 @@
-const Trade = require('../models/trades');
+const { updateTradeNotesById, getTradesByUserId, deleteTradeById, createTrade } = require('../models/trades');
 const jwt = require('jsonwebtoken');
 const { getUserById } = require('../models/users');
 
@@ -7,7 +7,7 @@ async function updateTradeNotes(req, res) {
         const { id } = req.params;
         const { notes } = req.body;
 
-        const updatedTrade = await Trade.findByIdAndUpdate(id, {$set: { notes }}, { returnDocument: 'after', runValidators: true });
+        const updatedTrade = await updateTradeNotesById(id, notes);
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }
@@ -39,7 +39,7 @@ async function getTrades(req, res) {
     }
 
     try {
-        const trades = await Trade.find({ userId: user._id });
+        const trades = await getTradesByUserId(user._id);
         res.status(200).json(trades);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ async function getTrades(req, res) {
 async function deleteTrade(req, res) {
     try {
         const { id } = req.params;
-        await Trade.deleteOne({ _id: id });
+        await deleteTradeById(id);
         res.status(200).json({ message: 'Trade deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -78,8 +78,7 @@ async function saveTrade(req, res) {
     }
 
     try {
-        const newTrade = new Trade({ ...req.body, userId: user._id });
-        await newTrade.save();
+        const newTrade = await createTrade({ ...req.body, userId: user._id });
         res.status(201).json(newTrade);
     } catch (err) {
         res.status(400).json({ error: err.message });
