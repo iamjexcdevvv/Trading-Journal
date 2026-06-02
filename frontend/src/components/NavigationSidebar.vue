@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { BookOpen, BarChart3, Calculator, X } from "lucide-vue-next";
+import { BookOpen, BarChart3, Calculator, Settings, X } from "lucide-vue-next";
 
 const props = defineProps({
 	isMobileOpen: { type: Boolean, default: false },
@@ -31,6 +31,12 @@ const navItems = computed(() => [
 		icon: Calculator,
 		testid: "nav-calculator",
 	},
+	{
+		path: "/settings",
+		label: "Settings",
+		icon: Settings,
+		testid: "nav-settings",
+	},
 ]);
 
 const isActive = (path) => route.path === path;
@@ -48,8 +54,8 @@ const closeSidebar = () => {
 <template>
 	<aside
 		:class="[
-			'fixed inset-y-0 left-0 z-50 lg:relative lg:inset-auto lg:z-auto transition-transform duration-300 ease-in-out',
-			'w-64 border-r border-border bg-surface/40 flex flex-col',
+			'fixed inset-y-0 left-0 z-50 lg:relative lg:inset-auto lg:z-auto lg:h-full transition-transform duration-300 ease-in-out',
+			'w-64 border-r border-border bg-surface/40 flex flex-col overflow-hidden',
 			isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
 		]"
 		data-testid="navigation-sidebar"
@@ -71,7 +77,7 @@ const closeSidebar = () => {
 		</div>
 
 		<!-- Nav Items -->
-		<nav class="flex-1 p-4 flex flex-col gap-1">
+		<nav class="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
 			<button
 				v-for="item in navItems"
 				:key="item.path"

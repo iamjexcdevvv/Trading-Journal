@@ -53,8 +53,3 @@ export function useTrades() {
 
 	return { trades, addTrade, removeTrade, stats, clearTrades, setTrades };
 }
-
-export const STRATEGIES = {
-	Long: ["Trendline Breakout", "Bounce Play", "Tabo Play"],
-	Short: ["Trendline Breakdown", "Correction Play", "Tabo Play"],
-};

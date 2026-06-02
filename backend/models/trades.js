@@ -14,4 +14,27 @@ const tradeSchema = new mongoose.Schema({
 
 const Trade = mongoose.model('Trade', tradeSchema);
 
-module.exports = Trade;
+async function createTrade(tradeData) {
+    const newTrade = new Trade(tradeData);
+    await newTrade.save();
+    return newTrade;
+}
+
+async function getTradesByUserId(userId) {
+    return await Trade.find({ userId });
+}
+
+async function deleteTradeById(id) {
+    await Trade.deleteOne({ _id: id });
+}
+
+async function updateTradeNotesById(id, notes) {
+    return await Trade.findByIdAndUpdate(id, { $set: { notes } }, { returnDocument: 'after', runValidators: true });
+}
+
+module.exports = {
+    createTrade,
+    getTradesByUserId,
+    deleteTradeById,
+    updateTradeNotesById
+};

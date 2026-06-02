@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import TradeLogging from "../views/TradeLogging.vue";
 import PnLAnalysis from "../views/PnLAnalysis.vue";
 import Calculator from "../views/Calculator.vue";
+import Strategies from "../views/Strategies.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import { useAuth } from "../composables/useAuth.js";
@@ -39,6 +40,12 @@ const routes = [
 		path: "/calculator",
 		name: "Calculator",
 		component: Calculator,
+		meta: { requiresAuth: true },
+	},
+	{
+		path: "/settings",
+		name: "Settings",
+		component: Strategies,
 		meta: { requiresAuth: true },
 	},
 ];

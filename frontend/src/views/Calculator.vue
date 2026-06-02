@@ -11,9 +11,10 @@ import {
 	Percent,
 	Plus,
 } from "lucide-vue-next";
-import { STRATEGIES } from "../composables/useTrades.js";
+import { useStrategies } from "../composables/useStrategies.js";
 
 const router = useRouter();
+const { strategiesByDirection } = useStrategies();
 
 // Input states
 const symbol = ref("");
@@ -524,7 +525,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 								Select Strategy...
 							</option>
 							<option
-								v-for="s in STRATEGIES[direction]"
+								v-for="s in strategiesByDirection[direction] || []"
 								:key="s"
 								:value="s"
 								class="bg-background text-text-main"

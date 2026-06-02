@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 
 const tradeRoutes = require('../routes/trades');
 const authRoutes = require('../routes/auth');
+const strategyRoutes = require('../routes/strategies');
 
 module.exports = function (app) {
     app.use(cors({
@@ -15,4 +16,5 @@ module.exports = function (app) {
 
     app.use('/api/trades', tradeRoutes);
     app.use('/api/auth', authRoutes);
+    app.use('/api/strategies', strategyRoutes);
 }
