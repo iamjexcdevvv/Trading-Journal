@@ -7,7 +7,7 @@ async function updateTradeNotes(req, res) {
         const { id } = req.params;
         const { notes } = req.body;
 
-        const updatedTrade = await Trade.findByIdAndUpdate(id, {$set: { notes }}, { new: true, runValidators: true });
+        const updatedTrade = await Trade.findByIdAndUpdate(id, {$set: { notes }}, { returnDocument: 'after', runValidators: true });
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }
