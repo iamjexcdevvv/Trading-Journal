@@ -2,9 +2,11 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { ArrowUpRight, ArrowDownRight, Check, X } from "lucide-vue-next";
-import { STRATEGIES, AVAILABLE_TAGS } from "../composables/useTrades.js";
+import { AVAILABLE_TAGS } from "../composables/useTrades.js";
+import { useStrategies } from "../composables/useStrategies.js";
 
 const route = useRoute();
+const { strategiesByDirection } = useStrategies();
 
 const emit = defineEmits(["submit"]);
 
@@ -203,7 +205,7 @@ const toggleTag = (tag) => {
 			>
 				<option value="" disabled class="bg-background">Select strategy…</option>
 				<option
-					v-for="s in STRATEGIES[direction]"
+					v-for="s in strategiesByDirection[direction] || []"
 					:key="s"
 					:value="s"
 					class="bg-background text-text-main"
