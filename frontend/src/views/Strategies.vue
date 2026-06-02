@@ -19,7 +19,7 @@ import StrategiesManager from "../components/StrategiesManager.vue";
 		</div>
 
 		<!-- Main Content -->
-		<div class="flex-1 lg:ml-34 overflow-auto p-6">
+		<div class="flex-1 lg:ml-34 overflow-auto p-6 min-h-[76vh]">
 			<div class="max-w-2xl mx-auto">
 				<StrategiesManager />
 			</div>
