@@ -49,8 +49,6 @@ async function registerUser(req, res) {
     newUser.refreshTokenExpiry = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
     await newUser.save();
 
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return res.status(201).json({ message: 'User registered successfully', accessToken });
