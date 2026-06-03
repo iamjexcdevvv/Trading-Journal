@@ -134,6 +134,8 @@ const {
 	queryFn: fetchTrades,
 	staleTime: 5 * 60 * 1000,
 	enabled: isLoggedIn.value,
+	refetchOnWindowFocus: true,
+	refetchOnReconnect: true,
 });
 
 // Sync cached data with local trades state

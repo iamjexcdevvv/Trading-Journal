@@ -21,7 +21,9 @@ export function useStrategies() {
 
 			return response.json();
 		},
-		staleTime: 5 * 60 * 1000, // 5 minutes
+		staleTime: 5 * 60 * 1000, // 5 minutes,
+		refetchOnWindowFocus: true,
+		refetchOnReconnect: true,
 	});
 
 	// Create strategy
