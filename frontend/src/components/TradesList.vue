@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown } from "lucide-vue-next";
+import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Upload, X, Check } from "lucide-vue-next";
 import { useAuth } from "@/composables/useAuth";
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -10,7 +10,7 @@ const props = defineProps({
 	lastAddedId: { type: String, default: null },
 });
 
-defineEmits(["delete"]);
+const emit = defineEmits(["delete", "screenshot-updated"]);
 
 const hasTrades = computed(() => props.trades.length > 0);
 
@@ -121,6 +121,16 @@ const getDisplayImageUrl = (src) => {
 const lightboxImage = ref("");
 const isLightboxOpen = ref(false);
 
+// Screenshot upload state
+const isScreenshotModalOpen = ref(false);
+const uploadingTradeId = ref(null);
+const screenshotTab = ref("file"); // 'file' | 'link'
+const screenshot = ref("");
+const screenshotLink = ref("");
+const screenshotType = ref("");
+const fileInput = ref(null);
+const isUploading = ref(false);
+
 const openLightbox = (src) => {
 	lightboxImage.value = getDisplayImageUrl(src);
 	isLightboxOpen.value = true;
@@ -136,6 +146,84 @@ const closeLightbox = () => {
 const handleEscape = (e) => {
 	if (e.key === "Escape") {
 		closeLightbox();
+		closeScreenshotModal();
+	}
+};
+
+const openScreenshotModal = (trade) => {
+	uploadingTradeId.value = trade._id;
+	screenshotTab.value = "file";
+	screenshot.value = "";
+	screenshotLink.value = "";
+	screenshotType.value = "";
+	isScreenshotModalOpen.value = true;
+};
+
+const closeScreenshotModal = () => {
+	isScreenshotModalOpen.value = false;
+	uploadingTradeId.value = null;
+	screenshot.value = "";
+	screenshotLink.value = "";
+	screenshotType.value = "";
+	if (fileInput.value) {
+		fileInput.value.value = "";
+	}
+};
+
+const handleFileUpload = (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+
+	const reader = new FileReader();
+	reader.onload = (event) => {
+		screenshot.value = event.target.result;
+		screenshotType.value = "file";
+	};
+	reader.readAsDataURL(file);
+};
+
+const handleLinkInput = () => {
+	if (screenshotLink.value.trim()) {
+		screenshot.value = screenshotLink.value.trim();
+		screenshotType.value = "link";
+	} else {
+		screenshot.value = "";
+		screenshotType.value = "";
+	}
+};
+
+const clearScreenshot = () => {
+	screenshot.value = "";
+	screenshotLink.value = "";
+	screenshotType.value = "";
+	if (fileInput.value) {
+		fileInput.value.value = "";
+	}
+};
+
+const uploadScreenshot = async () => {
+	if (!uploadingTradeId.value || !screenshot.value) return;
+
+	isUploading.value = true;
+	try {
+		const response = await fetch(`${apiUrl}/api/trades/${uploadingTradeId.value}/screenshot`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ screenshot: screenshot.value }),
+			credentials: "include",
+		});
+
+		if (!response.ok) {
+			throw new Error(`Failed to upload screenshot: ${response.statusText}`);
+		}
+
+		const updatedTrade = await response.json();
+		emit("screenshot-updated", updatedTrade);
+		closeScreenshotModal();
+	} catch (error) {
+		console.error("Error uploading screenshot:", error);
+	} finally {
+		isUploading.value = false;
 	}
 };
 </script>
@@ -334,37 +422,48 @@ const handleEscape = (e) => {
 							</div>
 						</td>
 						<td class="px-4 py-3 whitespace-nowrap">
-							<div v-if="trade.screenshot" class="relative flex items-center">
-								<img
-									v-if="isImage(trade.screenshot)"
-									:src="getDisplayImageUrl(trade.screenshot)"
-									@click="openLightbox(trade.screenshot)"
-									class="w-12 h-8 object-cover rounded border border-border/80 hover:border-primary/60 cursor-zoom-in hover:scale-105 transition-all duration-150"
-									alt="Screenshot thumbnail"
-								/>
-								<a
-									v-else
-									:href="trade.screenshot"
-									target="_blank"
-									class="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase text-primary hover:underline"
-								>
-									<svg
-										class="w-3 h-3"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
+							<div class="flex items-center gap-2">
+								<div v-if="trade.screenshot" class="relative flex items-center">
+									<img
+										v-if="isImage(trade.screenshot)"
+										:src="getDisplayImageUrl(trade.screenshot)"
+										@click="openLightbox(trade.screenshot)"
+										class="w-12 h-8 object-cover rounded border border-border/80 hover:border-primary/60 cursor-zoom-in hover:scale-105 transition-all duration-150"
+										alt="Screenshot thumbnail"
+									/>
+									<a
+										v-else
+										:href="trade.screenshot"
+										target="_blank"
+										class="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase text-primary hover:underline"
 									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-										/>
-									</svg>
-									<span>[Link]</span>
-								</a>
+										<svg
+											class="w-3 h-3"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+											/>
+										</svg>
+										<span>[Link]</span>
+									</a>
+								</div>
+								<span v-else class="text-text-muted/30 font-mono text-[10px]">—</span>
+								<button
+									type="button"
+									@click="openScreenshotModal(trade)"
+									class="inline-flex items-center justify-center w-6 h-6 text-text-muted hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
+									aria-label="Upload screenshot"
+									title="Upload screenshot"
+								>
+									<Upload :size="12" :stroke-width="2" />
+								</button>
 							</div>
-							<span v-else class="text-text-muted/30 font-mono text-[10px]">—</span>
 						</td>
 						<td
 							class="px-4 py-3 text-center font-mono text-sm font-bold tabular-nums whitespace-nowrap"
@@ -437,6 +536,130 @@ const handleEscape = (e) => {
 			</div>
 		</Transition>
 	</Teleport>
+
+	<!-- Screenshot Upload Modal -->
+	<Teleport to="body">
+		<Transition name="modal">
+			<div v-if="isScreenshotModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+				<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeScreenshotModal"></div>
+				<div class="relative w-full max-w-md bg-background border border-border rounded-lg shadow-2xl p-6">
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="font-heading font-black text-lg tracking-tight uppercase">
+							Upload Screenshot
+						</h3>
+						<button @click="closeScreenshotModal" class="p-2 text-text-muted hover:text-text-main transition-colors">
+							<X :size="20" :stroke-width="2" />
+						</button>
+					</div>
+
+					<div class="flex flex-col gap-4">
+						<div class="flex gap-2 mb-1.5 font-mono text-[10px]">
+							<button
+								type="button"
+								@click="screenshotTab = 'file'"
+								:class="[
+									'px-2.5 py-1 border transition-colors uppercase tracking-wider',
+									screenshotTab === 'file'
+										? 'border-primary text-primary bg-primary/10'
+										: 'border-border text-text-muted hover:text-text-main',
+								]"
+							>
+								File Upload
+							</button>
+							<button
+								type="button"
+								@click="screenshotTab = 'link'"
+								:class="[
+									'px-2.5 py-1 border transition-colors uppercase tracking-wider',
+									screenshotTab === 'link'
+										? 'border-primary text-primary bg-primary/10'
+										: 'border-border text-text-muted hover:text-text-main',
+								]"
+							>
+								Paste Link
+							</button>
+						</div>
+
+						<!-- File Upload -->
+						<div v-show="screenshotTab === 'file'" class="flex flex-col gap-2">
+							<div
+								class="border border-dashed border-border p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-surface-hover/30 hover:border-primary/50 transition-all rounded-md"
+								@click="fileInput.click()"
+							>
+								<input
+									ref="fileInput"
+									type="file"
+									accept="image/*"
+									class="hidden"
+									@change="handleFileUpload"
+								/>
+								<span
+									v-if="!screenshot"
+									class="text-xs text-text-muted font-mono tracking-wide"
+								>
+									[SELECT IMAGE FILE]
+								</span>
+								<span
+									v-else
+									class="text-xs text-success flex items-center gap-1 font-mono tracking-wide"
+								>
+									<Check :size="12" /> [IMAGE LOADED]
+								</span>
+							</div>
+						</div>
+
+						<!-- Paste Link -->
+						<div v-show="screenshotTab === 'link'">
+							<input
+								type="url"
+								v-model="screenshotLink"
+								placeholder="https://example.com/chart.png"
+								class="w-full bg-transparent border border-border px-3 py-2 font-sans text-xs text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
+								@input="handleLinkInput"
+							/>
+						</div>
+
+						<!-- Preview & Remove -->
+						<div
+							v-if="screenshot"
+							class="mt-2 flex items-center gap-3 bg-surface/30 p-2 border border-border rounded-md"
+						>
+							<img
+								:src="getDisplayImageUrl(screenshot)"
+								class="w-10 h-10 object-cover rounded border border-border"
+							/>
+							<div class="flex-1 min-w-0">
+								<p class="text-[10px] font-mono text-text-muted truncate">
+									{{ screenshotType === "file" ? "Local file uploaded" : screenshot }}
+								</p>
+							</div>
+							<button
+								type="button"
+								@click="clearScreenshot"
+								class="text-[10px] text-danger hover:underline font-mono uppercase tracking-wider shrink-0"
+							>
+								Remove
+							</button>
+						</div>
+
+						<button
+							type="button"
+							@click="uploadScreenshot"
+							:disabled="!screenshot || isUploading"
+							:class="[
+								'w-full py-3 font-heading font-bold text-sm tracking-widest uppercase transition-all duration-100',
+								screenshot && !isUploading
+									? 'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px'
+									: 'bg-border text-text-muted cursor-not-allowed',
+							]"
+						>
+							{{ isUploading ? 'Uploading...' : 'Upload Screenshot' }}
+						</button>
+					</div>
+				</div>
+			</div>
+		</Transition>
+	</Teleport>
 </template>
 
 <style scoped>
@@ -447,6 +670,27 @@ const handleEscape = (e) => {
 
 .fade-enter-from,
 .fade-leave-to {
+	opacity: 0;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+	transition: opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+	opacity: 0;
+}
+
+.modal-enter-active .relative,
+.modal-leave-active .relative {
+	transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-enter-from .relative,
+.modal-leave-to .relative {
+	transform: scale(0.95);
 	opacity: 0;
 }
 </style>

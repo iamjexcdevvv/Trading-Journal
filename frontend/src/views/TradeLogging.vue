@@ -35,6 +35,10 @@ const handleRemoveTrade = async (id, _id) => {
 	deleteTradeMutation.mutate(_id);
 };
 
+const handleScreenshotUpdated = (updatedTrade) => {
+	queryClient.invalidateQueries(["trades"]);
+};
+
 const openModal = () => {
 	isModalOpen.value = true;
 };
@@ -227,6 +231,7 @@ watch(
 				:trades="filteredTrades"
 				:last-added-id="lastAddedId"
 				@delete="handleRemoveTrade"
+				@screenshot-updated="handleScreenshotUpdated"
 			/>
 		</section>
 

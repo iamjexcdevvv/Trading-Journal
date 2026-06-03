@@ -6,5 +6,5 @@
 - [x] Fix cached data issue when expires does not refetch
 - [ ] Implement Third-party authentication like google, facebook or github
 - [ ] Customizable tags
-- [ ] Implement the ability to upload screenshot
-- [ ] Add a date field where the user will now enter the date manually
+- [x] Implement the ability to upload screenshot
+- [x] Add a date field where the user will now enter the date manually
