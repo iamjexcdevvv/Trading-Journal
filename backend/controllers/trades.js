@@ -78,7 +78,12 @@ async function saveTrade(req, res) {
     }
 
     try {
-        const newTrade = await createTrade({ ...req.body, userId: user._id });
+        // Convert date string to Date object if provided
+        const tradeData = { ...req.body };
+        if (tradeData.date) {
+            tradeData.date = new Date(tradeData.date);
+        }
+        const newTrade = await createTrade({ ...tradeData, userId: user._id });
         res.status(201).json(newTrade);
     } catch (err) {
         res.status(400).json({ error: err.message });
