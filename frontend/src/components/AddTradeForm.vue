@@ -17,6 +17,7 @@ const notes = ref(route.query.notes || "");
 const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
 const selectedTags = ref([]);
+const tradeDate = ref(new Date().toISOString().split('T')[0]);
 
 // Screenshot state
 const screenshotTab = ref("file"); // 'file' | 'link'
@@ -81,7 +82,7 @@ const onSubmit = () => {
 	const cleanedNotes = notes.value.trim();
 
 	emit("submit", {
-		date: new Date(),
+		date: tradeDate.value,
 		symbol: cleanedSymbol,
 		direction: direction.value,
 		strategy: strategy.value,
@@ -102,6 +103,7 @@ const resetInputs = () => {
 	justSubmitted.value = true;
 	pnl.value = "";
 	selectedTags.value = [];
+	tradeDate.value = new Date().toISOString().split('T')[0];
 	clearScreenshot();
 	setTimeout(() => (justSubmitted.value = false), 1200);
 };
@@ -149,6 +151,23 @@ const toggleTag = (tag) => {
 				maxlength="16"
 				class="bg-transparent border border-border px-3 py-2.5 font-mono text-base tracking-wider uppercase text-text-main placeholder:text-text-muted/50 placeholder:normal-case focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
 				data-testid="trade-symbol-input"
+			/>
+		</div>
+
+		<!-- Date -->
+		<div class="flex flex-col gap-1.5">
+			<label
+				for="tradeDate"
+				class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+			>
+				Date
+			</label>
+			<input
+				id="tradeDate"
+				v-model="tradeDate"
+				type="date"
+				class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
+				data-testid="trade-date-input"
 			/>
 		</div>
 

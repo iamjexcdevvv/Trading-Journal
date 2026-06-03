@@ -35,6 +35,10 @@ const handleRemoveTrade = async (id, _id) => {
 	deleteTradeMutation.mutate(_id);
 };
 
+const handleScreenshotUpdated = (updatedTrade) => {
+	queryClient.invalidateQueries(["trades"]);
+};
+
 const openModal = () => {
 	isModalOpen.value = true;
 };
@@ -134,6 +138,8 @@ const {
 	queryFn: fetchTrades,
 	staleTime: 5 * 60 * 1000,
 	enabled: isLoggedIn.value,
+	refetchOnWindowFocus: true,
+	refetchOnReconnect: true,
 });
 
 // Sync cached data with local trades state
@@ -225,6 +231,7 @@ watch(
 				:trades="filteredTrades"
 				:last-added-id="lastAddedId"
 				@delete="handleRemoveTrade"
+				@screenshot-updated="handleScreenshotUpdated"
 			/>
 		</section>
 
