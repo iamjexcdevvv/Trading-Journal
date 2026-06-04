@@ -1,22 +1,19 @@
 const { saveStrategy, getStrategiesByUserId, updateStrategyById, deleteStrategyById } = require('../models/strategies');
 const { getUserById } = require('../models/users');
-const jwt = require('jsonwebtoken');
+const Joi = require('joi');
+
+const strategySchema = Joi.object({
+    name: Joi.string().required(),
+    direction: Joi.string().valid('Long', 'Short').required(),
+})
 
 async function createStrategy(req, res) {
-    const userRefreshToken = req.cookies.refreshToken;
-
-    if (!userRefreshToken) {
-        return res.status(401).json({ error: 'No refresh token provided' });
+    const { error } = strategySchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
     }
 
-    let decodedUser;
-    try {
-        decodedUser = jwt.verify(userRefreshToken, process.env.JWT_SECRET);
-    }
-    catch (err) {
-        return res.status(401).json({ error: err });
-    }
-
+    const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
 
     if (!user || !user.refreshToken) {
@@ -37,20 +34,7 @@ async function createStrategy(req, res) {
 }
 
 async function getUserStrategies(req, res) {
-    const userRefreshToken = req.cookies.refreshToken;
-
-    if (!userRefreshToken) {
-        return res.status(401).json({ error: 'No refresh token provided' });
-    }
-
-    let decodedUser;
-    try {
-        decodedUser = jwt.verify(userRefreshToken, process.env.JWT_SECRET);
-    }
-    catch (err) {
-        return res.status(401).json({ error: err });
-    }
-
+    const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
 
     if (!user || !user.refreshToken) {
@@ -76,6 +60,11 @@ async function deleteStrategy(req, res) {
 
 async function updateStrategy(req, res) {
     try {
+        const { error } = strategySchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
         const updatedStrategy = await updateStrategyById(req.params.id, req.body);
         res.status(200).json(updatedStrategy);
     } catch (err) {

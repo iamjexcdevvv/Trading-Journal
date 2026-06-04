@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
+import apiFetch from '../utils/api';
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -10,16 +11,12 @@ export function useStrategies() {
 	const { data: strategies, isLoading, isError } = useQuery({
 		queryKey: ['strategies'],
 		queryFn: async () => {
-			const response = await fetch(`${apiUrl}/api/strategies`, {
+			const response = await apiFetch(`${apiUrl}/api/strategies`, {
 				method: 'GET',
 				credentials: 'include',
 			});
 
-			if (!response.ok) {
-				throw new Error('Failed to fetch strategies');
-			}
-
-			return response.json();
+			return response;
 		},
 		staleTime: 5 * 60 * 1000, // 5 minutes,
 		refetchOnWindowFocus: true,
@@ -29,18 +26,14 @@ export function useStrategies() {
 	// Create strategy
 	const createStrategyMutation = useMutation({
 		mutationFn: async (strategyData) => {
-			const response = await fetch(`${apiUrl}/api/strategies`, {
+			const response = await apiFetch(`${apiUrl}/api/strategies`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify(strategyData),
 			});
 
-			if (!response.ok) {
-				throw new Error('Failed to create strategy');
-			}
-
-			return response.json();
+			return response;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries(['strategies']);
@@ -50,18 +43,14 @@ export function useStrategies() {
 	// Update strategy
 	const updateStrategyMutation = useMutation({
 		mutationFn: async ({ id, ...strategyData }) => {
-			const response = await fetch(`${apiUrl}/api/strategies/${id}`, {
+			const response = await apiFetch(`${apiUrl}/api/strategies/${id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify(strategyData),
 			});
 
-			if (!response.ok) {
-				throw new Error('Failed to update strategy');
-			}
-
-			return response.json();
+			return response;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries(['strategies']);
@@ -71,14 +60,10 @@ export function useStrategies() {
 	// Delete strategy
 	const deleteStrategyMutation = useMutation({
 		mutationFn: async (id) => {
-			const response = await fetch(`${apiUrl}/api/strategies/${id}`, {
+			const response = await apiFetch(`${apiUrl}/api/strategies/${id}`, {
 				method: 'DELETE',
 				credentials: 'include',
 			});
-
-			if (!response.ok) {
-				throw new Error('Failed to delete strategy');
-			}
 
 			return id;
 		},

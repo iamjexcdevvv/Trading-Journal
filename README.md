@@ -8,3 +8,5 @@
 - [ ] Customizable tags
 - [x] Implement the ability to upload screenshot
 - [x] Add a date field where the user will now enter the date manually
+- [ ] Improve security, token, rate limiter, etc
+- [ ] Implement one button to edit the whole logged trade

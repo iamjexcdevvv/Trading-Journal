@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Upload, X, Check } from "lucide-vue-next";
-import { useAuth } from "@/composables/useAuth";
+import apiFetch from '../utils/api';
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -47,15 +47,11 @@ const saveNote = async (trade) => {
 	try {
 		trade.notes = editingNoteValue.value.trim();
 
-		const response = await fetch(`${apiUrl}/api/trades/notes/${trade._id}`, {
+		const response = await apiFetch(`${apiUrl}/api/trades/notes/${trade._id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ notes: trade.notes }),
 		});
-
-		if (!response.ok) {
-			console.error(`Failed to update trade with id ${trade._id}:`, response.statusText);
-		}
 	} catch (error) {
 		console.error("Error updating trade notes:", error);
 	}
@@ -206,16 +202,12 @@ const uploadScreenshot = async () => {
 
 	isUploading.value = true;
 	try {
-		const response = await fetch(`${apiUrl}/api/trades/${uploadingTradeId.value}/screenshot`, {
+		const response = await apiFetch(`${apiUrl}/api/trades/${uploadingTradeId.value}/screenshot`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ screenshot: screenshot.value }),
 			credentials: "include",
 		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to upload screenshot: ${response.statusText}`);
-		}
 
 		const updatedTrade = await response.json();
 		emit("screenshot-updated", updatedTrade);

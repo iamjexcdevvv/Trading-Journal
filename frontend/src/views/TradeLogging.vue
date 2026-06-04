@@ -7,8 +7,9 @@ import AddTradeModal from "../components/AddTradeModal.vue";
 import { useTrades, AVAILABLE_TAGS } from "../composables/useTrades.js";
 import { useAuth } from "../composables/useAuth.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import  apiFetch  from "../utils/api.js";
 
-const { isLoggedIn } = useAuth();
+const { isLoggedIn, token } = useAuth();
 const queryClient = useQueryClient();
 const route = useRoute();
 const router = useRouter();
@@ -70,15 +71,11 @@ const removeFilterTag = (tag) => {
 
 const deleteTradeMutation = useMutation({
 	mutationFn: async (_id) => {
-		const response = await fetch(`${apiUrl}/api/trades/${_id}`, {
+		const response = await apiFetch(`${apiUrl}/api/trades/${_id}`, {
 			method: "DELETE",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
 		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to delete trade: ${response.statusText}`);
-		}
 
 		return _id;
 	},
@@ -94,18 +91,14 @@ const deleteTradeMutation = useMutation({
 
 const addTradeMutation = useMutation({
 	mutationFn: async (payload) => {
-		const response = await fetch(`${apiUrl}/api/trades`, {
+		const response = await apiFetch(`${apiUrl}/api/trades`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
 			body: JSON.stringify(payload),
 		});
 
-		if (!response.ok) {
-			throw new Error(`Failed to add trade: ${response.statusText}`);
-		}
-
-		return response.json();
+		return response;
 	},
 	onSuccess: (data) => {
 		addTrade(data);
@@ -117,16 +110,15 @@ const addTradeMutation = useMutation({
 });
 
 const fetchTrades = async () => {
-	const response = await fetch(`${apiUrl}/api/trades`, {
+	const response = await apiFetch(`${apiUrl}/api/trades`, {
 		method: "GET",
 		credentials: "include",
+		headers: {
+			"Content-Type": "application/json",
+		},
 	});
 
-	if (!response.ok) {
-		throw new Error(`Failed to fetch trades: ${response.statusText}`);
-	}
-
-	return response.json();
+	return response;
 };
 
 const {
