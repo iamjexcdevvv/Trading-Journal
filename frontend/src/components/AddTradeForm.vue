@@ -2,11 +2,12 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { ArrowUpRight, ArrowDownRight, Check, X } from "lucide-vue-next";
-import { AVAILABLE_TAGS } from "../composables/useTrades.js";
 import { useStrategies } from "../composables/useStrategies.js";
+import { useTags } from "../composables/useTags.js";
 
 const route = useRoute();
 const { strategiesByDirection } = useStrategies();
+const { tagNames } = useTags();
 
 const emit = defineEmits(["submit"]);
 
@@ -241,7 +242,7 @@ const toggleTag = (tag) => {
 			</span>
 			<div class="flex flex-wrap gap-2">
 				<button
-					v-for="tag in AVAILABLE_TAGS"
+					v-for="tag in tagNames"
 					:key="tag"
 					type="button"
 					@click="toggleTag(tag)"

@@ -1,4 +1,4 @@
-const { updateTradeNotesById, getTradesByUserId, deleteTradeById, createTrade, updateTradeScreenshotById } = require('../models/trades');
+const { updateTradeNotesById, getTradesByUserId, deleteTradeById, createTrade, updateTradeScreenshotById, updateTradeById } = require('../models/trades');
 const jwt = require('jsonwebtoken');
 const { getUserById } = require('../models/users');
 const Joi = require('joi');
@@ -114,10 +114,34 @@ async function updateTradeScreenshot(req, res) {
     }
 }
 
+async function updateTrade(req, res) {
+    try {
+        const { error } = tradeSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+        const { id } = req.params;
+        const tradeData = { ...req.body };
+        if (tradeData.date) {
+            tradeData.date = new Date(tradeData.date);
+        }
+
+        const updatedTrade = await updateTradeById(id, tradeData);
+        if (!updatedTrade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+        res.status(200).json(updatedTrade);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
 module.exports = {
     saveTrade,
     getTrades,
     deleteTrade,
     updateTradeNotes,
-    updateTradeScreenshot
+    updateTradeScreenshot,
+    updateTrade
 }

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import apiFetch from '../utils/api';
 
@@ -60,7 +60,7 @@ export function useStrategies() {
 	// Delete strategy
 	const deleteStrategyMutation = useMutation({
 		mutationFn: async (id) => {
-			const response = await apiFetch(`${apiUrl}/api/strategies/${id}`, {
+			await apiFetch(`${apiUrl}/api/strategies/${id}`, {
 				method: 'DELETE',
 				credentials: 'include',
 			});

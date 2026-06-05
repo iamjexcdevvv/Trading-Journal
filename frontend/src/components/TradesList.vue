@@ -1,23 +1,15 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Upload, X, Check } from "lucide-vue-next";
-import apiFetch from '../utils/api';
-
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Pencil } from "lucide-vue-next";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
 	lastAddedId: { type: String, default: null },
 });
 
-const emit = defineEmits(["delete", "screenshot-updated"]);
+defineEmits(["delete", "edit"]);
 
 const hasTrades = computed(() => props.trades.length > 0);
-
-const isCancelling = ref(false);
-
-const editingNoteId = ref(null);
-const editingNoteValue = ref("");
 
 // Sort state
 const sortOrder = ref('desc'); // 'desc' for newest first, 'asc' for oldest first
@@ -33,43 +25,6 @@ const sortedTrades = computed(() => {
 
 const toggleSort = () => {
 	sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc';
-};
-
-const startEdit = (trade) => {
-	isCancelling.value = false;
-	editingNoteId.value = trade.id;
-	editingNoteValue.value = trade.notes || "";
-};
-
-const saveNote = async (trade) => {
-	if (isCancelling.value) return;
-
-	try {
-		trade.notes = editingNoteValue.value.trim();
-
-		const response = await apiFetch(`${apiUrl}/api/trades/notes/${trade._id}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ notes: trade.notes }),
-		});
-	} catch (error) {
-		console.error("Error updating trade notes:", error);
-	}
-
-	editingNoteId.value = null;
-};
-
-const cancelEdit = () => {
-	isCancelling.value = true;
-	editingNoteId.value = null;
-	editingNoteValue.value = "";
-};
-
-const vFocus = {
-	mounted(el) {
-		el.focus();
-		el.setSelectionRange(el.value.length, el.value.length);
-	},
 };
 
 const formatDateTime = (d) => {
@@ -117,16 +72,6 @@ const getDisplayImageUrl = (src) => {
 const lightboxImage = ref("");
 const isLightboxOpen = ref(false);
 
-// Screenshot upload state
-const isScreenshotModalOpen = ref(false);
-const uploadingTradeId = ref(null);
-const screenshotTab = ref("file"); // 'file' | 'link'
-const screenshot = ref("");
-const screenshotLink = ref("");
-const screenshotType = ref("");
-const fileInput = ref(null);
-const isUploading = ref(false);
-
 const openLightbox = (src) => {
 	lightboxImage.value = getDisplayImageUrl(src);
 	isLightboxOpen.value = true;
@@ -142,80 +87,6 @@ const closeLightbox = () => {
 const handleEscape = (e) => {
 	if (e.key === "Escape") {
 		closeLightbox();
-		closeScreenshotModal();
-	}
-};
-
-const openScreenshotModal = (trade) => {
-	uploadingTradeId.value = trade._id;
-	screenshotTab.value = "file";
-	screenshot.value = "";
-	screenshotLink.value = "";
-	screenshotType.value = "";
-	isScreenshotModalOpen.value = true;
-};
-
-const closeScreenshotModal = () => {
-	isScreenshotModalOpen.value = false;
-	uploadingTradeId.value = null;
-	screenshot.value = "";
-	screenshotLink.value = "";
-	screenshotType.value = "";
-	if (fileInput.value) {
-		fileInput.value.value = "";
-	}
-};
-
-const handleFileUpload = (e) => {
-	const file = e.target.files[0];
-	if (!file) return;
-
-	const reader = new FileReader();
-	reader.onload = (event) => {
-		screenshot.value = event.target.result;
-		screenshotType.value = "file";
-	};
-	reader.readAsDataURL(file);
-};
-
-const handleLinkInput = () => {
-	if (screenshotLink.value.trim()) {
-		screenshot.value = screenshotLink.value.trim();
-		screenshotType.value = "link";
-	} else {
-		screenshot.value = "";
-		screenshotType.value = "";
-	}
-};
-
-const clearScreenshot = () => {
-	screenshot.value = "";
-	screenshotLink.value = "";
-	screenshotType.value = "";
-	if (fileInput.value) {
-		fileInput.value.value = "";
-	}
-};
-
-const uploadScreenshot = async () => {
-	if (!uploadingTradeId.value || !screenshot.value) return;
-
-	isUploading.value = true;
-	try {
-		const response = await apiFetch(`${apiUrl}/api/trades/${uploadingTradeId.value}/screenshot`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ screenshot: screenshot.value }),
-			credentials: "include",
-		});
-
-		const updatedTrade = await response.json();
-		emit("screenshot-updated", updatedTrade);
-		closeScreenshotModal();
-	} catch (error) {
-		console.error("Error uploading screenshot:", error);
-	} finally {
-		isUploading.value = false;
 	}
 };
 </script>
@@ -360,58 +231,13 @@ const uploadScreenshot = async () => {
 							{{ trade.strategy }}
 						</td>
 						<td class="px-4 py-3 w-48 min-w-48 max-w-48">
-							<div
-								v-if="!editingNoteId || editingNoteId !== trade.id"
-								@click="startEdit(trade)"
-								class="group relative cursor-text min-h-[2rem] flex items-start gap-2"
+							<span
+								v-if="trade.notes"
+								class="font-sans text-sm text-text-muted leading-snug overflow-y-auto max-h-12 scrollbar-thin block w-full break-words"
 							>
-								<span
-									v-if="trade.notes"
-									class="font-sans text-sm text-text-muted leading-snug overflow-y-auto max-h-12 scrollbar-thin block w-full break-words"
-								>
-									{{ trade.notes }}
-								</span>
-								<span v-else class="font-mono text-xs text-text-muted/30">
-									Add note...
-								</span>
-
-								<span
-									class="opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0 mt-0.5"
-								>
-									<svg
-										class="w-3.5 h-3.5 text-text-muted/50"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828A2 2 0 0110 16H8v-2a2 2 0 01.586-1.414z"
-										/>
-									</svg>
-								</span>
-							</div>
-
-							<!-- Editing state -->
-							<div v-else class="relative">
-								<textarea
-									v-focus
-									v-model="editingNoteValue"
-									@blur="saveNote(trade)"
-									@keydown.enter.exact.prevent="saveNote(trade)"
-									@keydown.esc="cancelEdit"
-									rows="3"
-									placeholder="Add note..."
-									class="w-full bg-surface border border-primary/40 focus:border-primary rounded-md px-3 py-2 font-sans text-sm text-text-main placeholder:text-text-muted/30 resize-none outline-none transition-colors duration-150 leading-snug overflow-y-auto max-h-32 scrollbar-thin"
-								/>
-								<div class="flex items-center justify-end gap-2 mt-1">
-									<span class="font-mono text-[10px] text-text-muted/40"
-										>esc to cancel · enter to save</span
-									>
-								</div>
-							</div>
+								{{ trade.notes }}
+							</span>
+							<span v-else class="text-text-muted/30 font-mono text-xs">—</span>
 						</td>
 						<td class="px-4 py-3 whitespace-nowrap">
 							<div class="flex items-center gap-2">
@@ -446,15 +272,6 @@ const uploadScreenshot = async () => {
 									</a>
 								</div>
 								<span v-else class="text-text-muted/30 font-mono text-[10px]">—</span>
-								<button
-									type="button"
-									@click="openScreenshotModal(trade)"
-									class="inline-flex items-center justify-center w-6 h-6 text-text-muted hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
-									aria-label="Upload screenshot"
-									title="Upload screenshot"
-								>
-									<Upload :size="12" :stroke-width="2" />
-								</button>
 							</div>
 						</td>
 						<td
@@ -474,15 +291,26 @@ const uploadScreenshot = async () => {
 							<span v-else class="text-text-muted/40 font-mono text-xs">—</span>
 						</td>
 						<td class="px-4 py-3 text-right">
-							<button
-								type="button"
-								@click="$emit('delete', trade.id, trade._id)"
-								:data-testid="`delete-trade-btn-${trade.id}`"
-								class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
-								aria-label="Delete trade"
-							>
-								<Trash2 :size="14" :stroke-width="2" />
-							</button>
+							<div class="flex items-center justify-end gap-1">
+								<button
+									type="button"
+									@click="$emit('edit', trade)"
+									:data-testid="`edit-trade-btn-${trade.id}`"
+									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
+									aria-label="Edit trade"
+								>
+									<Pencil :size="14" :stroke-width="2" />
+								</button>
+								<button
+									type="button"
+									@click="$emit('delete', trade.id, trade._id)"
+									:data-testid="`delete-trade-btn-${trade.id}`"
+									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
+									aria-label="Delete trade"
+								>
+									<Trash2 :size="14" :stroke-width="2" />
+								</button>
+							</div>
 						</td>
 					</tr>
 				</tbody>
@@ -529,129 +357,7 @@ const uploadScreenshot = async () => {
 		</Transition>
 	</Teleport>
 
-	<!-- Screenshot Upload Modal -->
-	<Teleport to="body">
-		<Transition name="modal">
-			<div v-if="isScreenshotModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-				<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeScreenshotModal"></div>
-				<div class="relative w-full max-w-md bg-background border border-border rounded-lg shadow-2xl p-6">
-					<div class="flex items-center justify-between mb-4">
-						<h3 class="font-heading font-black text-lg tracking-tight uppercase">
-							Upload Screenshot
-						</h3>
-						<button @click="closeScreenshotModal" class="p-2 text-text-muted hover:text-text-main transition-colors">
-							<X :size="20" :stroke-width="2" />
-						</button>
-					</div>
 
-					<div class="flex flex-col gap-4">
-						<div class="flex gap-2 mb-1.5 font-mono text-[10px]">
-							<button
-								type="button"
-								@click="screenshotTab = 'file'"
-								:class="[
-									'px-2.5 py-1 border transition-colors uppercase tracking-wider',
-									screenshotTab === 'file'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								File Upload
-							</button>
-							<button
-								type="button"
-								@click="screenshotTab = 'link'"
-								:class="[
-									'px-2.5 py-1 border transition-colors uppercase tracking-wider',
-									screenshotTab === 'link'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								Paste Link
-							</button>
-						</div>
-
-						<!-- File Upload -->
-						<div v-show="screenshotTab === 'file'" class="flex flex-col gap-2">
-							<div
-								class="border border-dashed border-border p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-surface-hover/30 hover:border-primary/50 transition-all rounded-md"
-								@click="fileInput.click()"
-							>
-								<input
-									ref="fileInput"
-									type="file"
-									accept="image/*"
-									class="hidden"
-									@change="handleFileUpload"
-								/>
-								<span
-									v-if="!screenshot"
-									class="text-xs text-text-muted font-mono tracking-wide"
-								>
-									[SELECT IMAGE FILE]
-								</span>
-								<span
-									v-else
-									class="text-xs text-success flex items-center gap-1 font-mono tracking-wide"
-								>
-									<Check :size="12" /> [IMAGE LOADED]
-								</span>
-							</div>
-						</div>
-
-						<!-- Paste Link -->
-						<div v-show="screenshotTab === 'link'">
-							<input
-								type="url"
-								v-model="screenshotLink"
-								placeholder="https://example.com/chart.png"
-								class="w-full bg-transparent border border-border px-3 py-2 font-sans text-xs text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
-								@input="handleLinkInput"
-							/>
-						</div>
-
-						<!-- Preview & Remove -->
-						<div
-							v-if="screenshot"
-							class="mt-2 flex items-center gap-3 bg-surface/30 p-2 border border-border rounded-md"
-						>
-							<img
-								:src="getDisplayImageUrl(screenshot)"
-								class="w-10 h-10 object-cover rounded border border-border"
-							/>
-							<div class="flex-1 min-w-0">
-								<p class="text-[10px] font-mono text-text-muted truncate">
-									{{ screenshotType === "file" ? "Local file uploaded" : screenshot }}
-								</p>
-							</div>
-							<button
-								type="button"
-								@click="clearScreenshot"
-								class="text-[10px] text-danger hover:underline font-mono uppercase tracking-wider shrink-0"
-							>
-								Remove
-							</button>
-						</div>
-
-						<button
-							type="button"
-							@click="uploadScreenshot"
-							:disabled="!screenshot || isUploading"
-							:class="[
-								'w-full py-3 font-heading font-bold text-sm tracking-widest uppercase transition-all duration-100',
-								screenshot && !isUploading
-									? 'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px'
-									: 'bg-border text-text-muted cursor-not-allowed',
-							]"
-						>
-							{{ isUploading ? 'Uploading...' : 'Upload Screenshot' }}
-						</button>
-					</div>
-				</div>
-			</div>
-		</Transition>
-	</Teleport>
 </template>
 
 <style scoped>

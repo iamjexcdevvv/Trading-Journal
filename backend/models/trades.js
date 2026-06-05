@@ -36,10 +36,15 @@ async function updateTradeScreenshotById(id, screenshot) {
     return await Trade.findByIdAndUpdate(id, { $set: { screenshot } }, { returnDocument: 'after', runValidators: true });
 }
 
+async function updateTradeById(id, tradeData) {
+    return await Trade.findByIdAndUpdate(id, { $set: tradeData }, { returnDocument: 'after', runValidators: true });
+}
+
 module.exports = {
     createTrade,
     getTradesByUserId,
     deleteTradeById,
     updateTradeNotesById,
-    updateTradeScreenshotById
+    updateTradeScreenshotById,
+    updateTradeById
 };
