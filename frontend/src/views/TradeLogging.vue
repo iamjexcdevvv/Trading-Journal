@@ -4,16 +4,20 @@ import { useRoute, useRouter } from "vue-router";
 import { Plus, X } from "lucide-vue-next";
 import TradesList from "../components/TradesList.vue";
 import AddTradeModal from "../components/AddTradeModal.vue";
-import { useTrades, AVAILABLE_TAGS } from "../composables/useTrades.js";
+import EditTradeModal from "../components/EditTradeModal.vue";
+import { useTrades } from "../composables/useTrades.js";
 import { useAuth } from "../composables/useAuth.js";
+import { useTags } from "../composables/useTags.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import  apiFetch  from "../utils/api.js";
 
-const { isLoggedIn } = useAuth();
+const { isLoggedIn, token } = useAuth();
 const queryClient = useQueryClient();
 const route = useRoute();
 const router = useRouter();
 
 const { trades, addTrade, removeTrade, setTrades } = useTrades();
+const { tagNames } = useTags();
 const lastAddedId = ref(null);
 const isModalOpen = ref(route.query.autoOpen === "true");
 const selectedFilterTags = ref([]);
@@ -35,8 +39,21 @@ const handleRemoveTrade = async (id, _id) => {
 	deleteTradeMutation.mutate(_id);
 };
 
-const handleScreenshotUpdated = (updatedTrade) => {
-	queryClient.invalidateQueries(["trades"]);
+const isEditModalOpen = ref(false);
+const editingTrade = ref(null);
+
+const handleEditTrade = (trade) => {
+	editingTrade.value = trade;
+	isEditModalOpen.value = true;
+};
+
+const handleUpdate = ({ _id, payload }) => {
+	updateTradeMutation.mutate({ _id, payload });
+};
+
+const closeEditModal = () => {
+	isEditModalOpen.value = false;
+	editingTrade.value = null;
 };
 
 const openModal = () => {
@@ -70,15 +87,11 @@ const removeFilterTag = (tag) => {
 
 const deleteTradeMutation = useMutation({
 	mutationFn: async (_id) => {
-		const response = await fetch(`${apiUrl}/api/trades/${_id}`, {
+		const response = await apiFetch(`${apiUrl}/api/trades/${_id}`, {
 			method: "DELETE",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
 		});
-
-		if (!response.ok) {
-			throw new Error(`Failed to delete trade: ${response.statusText}`);
-		}
 
 		return _id;
 	},
@@ -94,18 +107,14 @@ const deleteTradeMutation = useMutation({
 
 const addTradeMutation = useMutation({
 	mutationFn: async (payload) => {
-		const response = await fetch(`${apiUrl}/api/trades`, {
+		const response = await apiFetch(`${apiUrl}/api/trades`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
 			body: JSON.stringify(payload),
 		});
 
-		if (!response.ok) {
-			throw new Error(`Failed to add trade: ${response.statusText}`);
-		}
-
-		return response.json();
+		return response;
 	},
 	onSuccess: (data) => {
 		addTrade(data);
@@ -116,17 +125,34 @@ const addTradeMutation = useMutation({
 	},
 });
 
+const updateTradeMutation = useMutation({
+	mutationFn: async ({ _id, payload }) => {
+		const response = await apiFetch(`${apiUrl}/api/trades/${_id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(payload),
+		});
+
+		return response;
+	},
+	onSuccess: () => {
+		isEditModalOpen.value = false;
+		editingTrade.value = null;
+		queryClient.invalidateQueries(["trades"]);
+	},
+});
+
 const fetchTrades = async () => {
-	const response = await fetch(`${apiUrl}/api/trades`, {
+	const response = await apiFetch(`${apiUrl}/api/trades`, {
 		method: "GET",
 		credentials: "include",
+		headers: {
+			"Content-Type": "application/json",
+		},
 	});
 
-	if (!response.ok) {
-		throw new Error(`Failed to fetch trades: ${response.statusText}`);
-	}
-
-	return response.json();
+	return response;
 };
 
 const {
@@ -211,7 +237,7 @@ watch(
 				Filter by tag:
 			</span>
 			<button
-				v-for="tag in AVAILABLE_TAGS"
+				v-for="tag in tagNames"
 				:key="tag"
 				@click="toggleFilterTag(tag)"
 				:class="[
@@ -231,11 +257,14 @@ watch(
 				:trades="filteredTrades"
 				:last-added-id="lastAddedId"
 				@delete="handleRemoveTrade"
-				@screenshot-updated="handleScreenshotUpdated"
+				@edit="handleEditTrade"
 			/>
 		</section>
 
 		<!-- Add Trade Modal -->
 		<AddTradeModal :is-open="isModalOpen" @close="closeModal" @submit="handleAdd" />
+
+		<!-- Edit Trade Modal -->
+		<EditTradeModal :is-open="isEditModalOpen" :trade="editingTrade" @close="closeEditModal" @submit="handleUpdate" />
 	</div>
 </template>

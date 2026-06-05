@@ -1,9 +1,34 @@
-const { updateTradeNotesById, getTradesByUserId, deleteTradeById, createTrade, updateTradeScreenshotById } = require('../models/trades');
+const { updateTradeNotesById, getTradesByUserId, deleteTradeById, createTrade, updateTradeScreenshotById, updateTradeById } = require('../models/trades');
 const jwt = require('jsonwebtoken');
 const { getUserById } = require('../models/users');
+const Joi = require('joi');
+
+const tradeSchema = Joi.object({
+    date: Joi.date().iso(),
+    symbol: Joi.string().required(),
+    direction: Joi.string().valid('Long', 'Short').required(),
+    strategy: Joi.string().required(),
+    notes: Joi.string().allow('').optional(),
+    pnl: Joi.number().allow(null).optional(),
+    screenshot: Joi.string().uri().allow('').optional(),
+    tags: Joi.array().items(Joi.string()).optional()
+})
+
+const updateNotesSchema = Joi.object({
+    notes: Joi.string().allow('').required()
+})
+
+const updateScreenshotSchema = Joi.object({
+    screenshot: Joi.string().uri().allow('').required()
+})
 
 async function updateTradeNotes(req, res) {
     try {
+        const { error } = updateNotesSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
         const { id } = req.params;
         const { notes } = req.body;
 
@@ -18,20 +43,7 @@ async function updateTradeNotes(req, res) {
 }
 
 async function getTrades(req, res) {
-    const userRefreshToken = req.cookies.refreshToken;
-
-    if (!userRefreshToken) {
-        return res.status(401).json({ error: 'No refresh token provided' });
-    }
-
-    let decodedUser;
-    try {
-        decodedUser = jwt.verify(userRefreshToken, process.env.JWT_SECRET);
-    }
-    catch (err) {
-        return res.status(401).json({ error: 'Invalid refresh token' });
-    }
-
+    const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
 
     if (!user || !user.refreshToken) {
@@ -57,20 +69,12 @@ async function deleteTrade(req, res) {
 }
 
 async function saveTrade(req, res) {
-    const userRefreshToken = req.cookies.refreshToken;
-
-    if (!userRefreshToken) {
-        return res.status(401).json({ error: 'No refresh token provided' });
+    const { error } = tradeSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
     }
 
-    let decodedUser;
-    try {
-        decodedUser = jwt.verify(userRefreshToken, process.env.JWT_SECRET);
-    }
-    catch (err) {
-        return res.status(401).json({ error: err });
-    }
-
+    const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
 
     if (!user || !user.refreshToken) {
@@ -92,10 +96,38 @@ async function saveTrade(req, res) {
 
 async function updateTradeScreenshot(req, res) {
     try {
+        const { error } = updateScreenshotSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
         const { id } = req.params;
         const { screenshot } = req.body;
 
         const updatedTrade = await updateTradeScreenshotById(id, screenshot);
+        if (!updatedTrade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+        res.status(200).json(updatedTrade);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+
+async function updateTrade(req, res) {
+    try {
+        const { error } = tradeSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+        const { id } = req.params;
+        const tradeData = { ...req.body };
+        if (tradeData.date) {
+            tradeData.date = new Date(tradeData.date);
+        }
+
+        const updatedTrade = await updateTradeById(id, tradeData);
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }
@@ -110,5 +142,6 @@ module.exports = {
     getTrades,
     deleteTrade,
     updateTradeNotes,
-    updateTradeScreenshot
+    updateTradeScreenshot,
+    updateTrade
 }

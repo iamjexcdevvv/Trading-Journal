@@ -3,20 +3,6 @@ import { ref, computed } from "vue";
 // In-memory store (resets on refresh) per user choice.
 const trades = ref([]);
 
-// Pre-defined tags
-export const AVAILABLE_TAGS = [
-	"scalping",
-	"intra-day",
-	"swing trade",
-	"position trade",
-	"FOMO",
-	"revenge trade",
-	"Overtrading",
-	"news trade",
-	"grade a+ Setup",
-	"grade b Setup",
-];
-
 export function useTrades() {
 	const addTrade = (trade) => {
 		trades.value.unshift({
