@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const Joi = require('joi');
 const jwt = require("jsonwebtoken");
-const {saveUser, getUser, getUserById} = require('../models/users');
+const {saveUser, getUser, getUserById, getUserByGoogleId} = require('../models/users');
 const generateJWTToken = require('../utils/token')
 
 const registerSchema = Joi.object({
@@ -152,4 +152,41 @@ async function logoutUser(req, res) {
     return res.status(200).json({ message: 'Logout successful' });
 }
 
-module.exports = {registerUser, loginUser, refreshToken, logoutUser};
+async function googleAuth(req, res) {
+    const profile = req.user;
+
+    let user = await getUserByGoogleId(profile.id, profile.emails[0].value);
+
+    if (user) {
+        if (!user.googleId) {
+            user.googleId = profile.id;
+            await user.save();
+        }
+    }
+    else {
+        const newUser = await saveUser({
+            googleId: profile.id,
+            email: profile.emails[0].value,
+            username: profile.displayName
+        });
+
+        user = newUser;
+    }
+
+    const date = new Date();
+    const refreshToken = generateJWTToken({_id: user._id}, '7d');
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+    user.refreshToken = hashedRefreshToken;
+    user.refreshTokenExpiry = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
+    await user.save();
+
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    const accessToken = generateJWTToken({_id: user._id, username: user.username});
+
+    // Redirect to frontend callback page with access token
+    return res.redirect(`${process.env.FRONTEND_URL}/auth/callback?accessToken=${accessToken}`);
+}
+
+module.exports = {registerUser, loginUser, refreshToken, logoutUser, googleAuth};

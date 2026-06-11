@@ -5,6 +5,7 @@ import Calculator from "../views/Calculator.vue";
 import Settings from "../views/Settings.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
+import OAuthCallback from "../views/OAuthCallback.vue";
 import { useAuth } from "../composables/useAuth.js";
 
 const routes = [
@@ -22,6 +23,12 @@ const routes = [
 		path: "/register",
 		name: "Register",
 		component: Register,
+		meta: { requiresGuest: true },
+	},
+	{
+		path: "/auth/callback",
+		name: "OAuthCallback",
+		component: OAuthCallback,
 		meta: { requiresGuest: true },
 	},
 	{
