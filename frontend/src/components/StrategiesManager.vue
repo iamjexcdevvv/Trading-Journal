@@ -2,8 +2,9 @@
 import { ref, watch } from "vue";
 import { Plus, Trash2, Edit2, X, Check, ArrowUpRight, ArrowDownRight } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
+import Loading from "./Loading.vue";
 
-const { strategies, createStrategy, updateStrategy, deleteStrategy } = useStrategies();
+const { strategies, createStrategy, updateStrategy, deleteStrategy, isLoading } = useStrategies();
 
 const isModalOpen = ref(false);
 const editingStrategy = ref(null);
@@ -78,7 +79,12 @@ watch(
 </script>
 
 <template>
-	<div class="border border-border bg-surface/40 p-4">
+	<div class="border border-border bg-surface/40 p-4 relative">
+		<!-- Loading Overlay -->
+		<div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-surface/40 z-10">
+			<Loading message="Loading strategies..." />
+		</div>
+
 		<div class="flex items-center justify-between mb-4">
 			<div class="flex items-center gap-2">
 				<Plus :size="16" :stroke-width="2" class="text-text-muted" />

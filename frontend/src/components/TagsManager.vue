@@ -2,8 +2,9 @@
 import { ref } from "vue";
 import { Plus, Trash2, Edit2, X, Tag as TagIcon } from "lucide-vue-next";
 import { useTags } from "../composables/useTags.js";
+import Loading from "./Loading.vue";
 
-const { tags, createTag, updateTag, deleteTag } = useTags();
+const { tags, createTag, updateTag, deleteTag, isLoading } = useTags();
 
 const isModalOpen = ref(false);
 const editingTag = ref(null);
@@ -52,7 +53,12 @@ const handleDelete = (id) => {
 </script>
 
 <template>
-	<div class="border border-border bg-surface/40 p-4">
+	<div class="border border-border bg-surface/40 p-4 relative">
+		<!-- Loading Overlay -->
+		<div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-surface/40 z-10">
+			<Loading message="Loading tags..." />
+		</div>
+
 		<div class="flex items-center justify-between mb-4">
 			<div class="flex items-center gap-2">
 				<TagIcon :size="16" :stroke-width="2" class="text-text-muted" />
