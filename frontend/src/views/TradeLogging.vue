@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-vue-next";
 import TradesList from "../components/TradesList.vue";
 import AddTradeModal from "../components/AddTradeModal.vue";
 import EditTradeModal from "../components/EditTradeModal.vue";
+import Loading from "../components/Loading.vue";
 import { useTrades } from "../composables/useTrades.js";
 import { useAuth } from "../composables/useAuth.js";
 import { useTags } from "../composables/useTags.js";
@@ -252,7 +253,12 @@ watch(
 		</div>
 
 		<!-- Ledger -->
-		<section class="flex-1 grid-bg min-h-[66vh] overflow-hidden" data-testid="ledger-area">
+		<section class="flex-1 grid-bg min-h-[66vh] overflow-hidden relative" data-testid="ledger-area">
+			<!-- Loading Overlay -->
+			<div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+				<Loading message="Loading trades..." />
+			</div>
+			
 			<TradesList
 				:trades="filteredTrades"
 				:last-added-id="lastAddedId"
