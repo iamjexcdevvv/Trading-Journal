@@ -7,13 +7,15 @@ const authRoutes = require('../routes/auth');
 const strategyRoutes = require('../routes/strategies');
 const tagRoutes = require('../routes/tags');
 
-module.exports = function (app, logger) {
+module.exports = function (app, logger, globalRateLimiter) {
     app.use(cors({
         origin: process.env.FRONTEND_URL,  // your frontend URL
         credentials: true                 // allow cookies
     }));
     app.use(express.json({ limit: '10mb' }));
     app.use(cookieParser());
+
+    app.use(globalRateLimiter);
     
     app.use('/api/trades', tradeRoutes);
     app.use('/api/auth', authRoutes);
@@ -26,7 +28,7 @@ module.exports = function (app, logger) {
             method: req.method,
             stack: req.stack
         });
-        
+
         return res.status(500).json({ error: 'Something went wrong on our end. Please try again later.' });
     });
 }

@@ -6,6 +6,7 @@ require('dotenv').config({
 require('./config/passport');
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const winston = require('winston');
@@ -18,6 +19,16 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'logs/errors.log', level: 'error' })
   ]
 })
+
+const globalRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    ipv6Subnet: 56,
+    skip: (req) => process.env.NODE_ENV === 'development',
+    message: { error: 'Too many requests, please try again later.' }
+});
 
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception:', error);
@@ -49,7 +60,7 @@ else {
 
 app.use(helmet());
 
-require('./startups/routes')(app, logger);
+require('./startups/routes')(app, logger, globalRateLimiter);
 
 app.listen(process.env.PORT || 3000, () => {
     console.log('Server is running on port ' + (process.env.PORT || 3000));
