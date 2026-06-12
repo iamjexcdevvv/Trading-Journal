@@ -43,10 +43,8 @@ async function registerUser(req, res) {
     const refreshToken = generateJWTToken({_id: newUser._id}, '7d');
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    const date = new Date();
 
     newUser.refreshToken = hashedRefreshToken;
-    newUser.refreshTokenExpiry = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
     await newUser.save();
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -71,17 +69,14 @@ async function loginUser(req, res) {
         return res.status(400).json({ error: 'Invalid username or password' });
     }
 
-    const date = new Date();
     const refreshToken = generateJWTToken({_id: user._id}, '7d');
+    const accessToken = generateJWTToken({_id: user._id, username: user.username});
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     user.refreshToken = hashedRefreshToken;
-    user.refreshTokenExpiry = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
     await user.save();
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-    const accessToken = generateJWTToken({_id: user._id, username: user.username});
 
     return res.status(200).json({ message: 'Login successful', accessToken });
 }
@@ -113,12 +108,15 @@ async function refreshToken(req, res) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
-    const date = new Date();
-    if (user.refreshTokenExpiry && user.refreshTokenExpiry < date) {
-        return res.status(401).json({ error: 'Refresh token expired' });
-    }
+    const refreshToken = generateJWTToken({_id: user._id}, '7d');
+    const accessToken = generateJWTToken({_id: user._id, username: user.username});
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
-    const accessToken = generateJWTToken({_id: user._id, username: user .username});
+    user.refreshToken = hashedRefreshToken;
+    await user.save();
+
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+
     return res.status(200).json({ message: 'Token refreshed successfully', accessToken });  
 }
 
@@ -144,7 +142,6 @@ async function logoutUser(req, res) {
     }
 
     user.refreshToken = null;
-    user.refreshTokenExpiry = null;
     await user.save();
 
     res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
@@ -173,12 +170,10 @@ async function googleAuth(req, res) {
         user = newUser;
     }
 
-    const date = new Date();
     const refreshToken = generateJWTToken({_id: user._id}, '7d');
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     user.refreshToken = hashedRefreshToken;
-    user.refreshTokenExpiry = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000);
     await user.save();
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });

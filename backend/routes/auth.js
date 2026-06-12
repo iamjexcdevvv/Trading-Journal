@@ -1,11 +1,23 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const passport = require('passport');
 
 const { registerUser, loginUser, refreshToken, logoutUser, googleAuth } = require('../controllers/auth');
 
-router.post('/register', registerUser)
-router.post('/login', loginUser)
+const authRateLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 5, // limit each IP to 5 requests per windowMs
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      ipv6Subnet: 56,
+      skipSuccessfulRequests: true,
+      skip: (req) => process.env.NODE_ENV === 'development',
+      message: { error: 'Too many auth attempts, please try again later.' }
+})
+
+router.post('/register', authRateLimiter, registerUser)
+router.post('/login', authRateLimiter, loginUser)
 router.post('/refresh', refreshToken)
 router.post('/logout', logoutUser)
 

@@ -15,8 +15,6 @@ const { logout } = useAuth();
 const { clearTrades } = useTrades();
 
 const isMobileSidebarOpen = ref(false);
-const isAppLoading = ref(true);
-const isRouteLoading = ref(false);
 
 const isAuthPage = computed(() => {
 	return route.path === "/login" || route.path === "/register";
@@ -44,33 +42,10 @@ const handleLogout = async () => {
 		router.push("/login");
 	}
 };
-
-// Handle route loading
-router.beforeEach(() => {
-	isRouteLoading.value = true;
-});
-
-router.afterEach(() => {
-	setTimeout(() => {
-		isRouteLoading.value = false;
-	}, 200);
-});
-
-onMounted(() => {
-	// Simulate initial app load
-	setTimeout(() => {
-		isAppLoading.value = false;
-	}, 500);
-});
 </script>
 
 <template>
 	<div class="min-h-screen bg-background text-text-main flex flex-col">
-		<!-- ===== GLOBAL LOADING OVERLAY ===== -->
-		<div v-if="isAppLoading || isRouteLoading" class="fixed inset-0 flex items-center justify-center bg-background z-50">
-			<Loading :message="isAppLoading ? 'Loading application...' : 'Loading...'" />
-		</div>
-
 		<!-- ===== TOP HEADER ===== -->
 		<header
 			v-if="!isAuthPage"
