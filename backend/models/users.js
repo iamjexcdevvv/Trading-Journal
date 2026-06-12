@@ -6,8 +6,7 @@ const userSchema = new mongoose.Schema({
     username: {type: String, required: false, minlength: 3},
     password: {type: String, required: false, minlength: 6},
     hashedPassword: {type: String, required: false},
-    refreshToken: {type: String},
-    refreshTokenExpiry: {type: Date}
+    refreshToken: {type: String}
 })
 
 const User = mongoose.model('User', userSchema);
