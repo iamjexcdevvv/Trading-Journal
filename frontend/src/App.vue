@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed } from "vue";
-import { useRoute } from "vue-router";
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
+import Loading from "./components/Loading.vue";
 import { Menu, LogOut } from "lucide-vue-next";
 import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
-import { useRouter } from "vue-router";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
 
@@ -15,6 +15,8 @@ const { logout } = useAuth();
 const { clearTrades } = useTrades();
 
 const isMobileSidebarOpen = ref(false);
+const isAppLoading = ref(true);
+const isRouteLoading = ref(false);
 
 const isAuthPage = computed(() => {
 	return route.path === "/login" || route.path === "/register";
@@ -42,10 +44,33 @@ const handleLogout = async () => {
 		router.push("/login");
 	}
 };
+
+// Handle route loading
+router.beforeEach(() => {
+	isRouteLoading.value = true;
+});
+
+router.afterEach(() => {
+	setTimeout(() => {
+		isRouteLoading.value = false;
+	}, 200);
+});
+
+onMounted(() => {
+	// Simulate initial app load
+	setTimeout(() => {
+		isAppLoading.value = false;
+	}, 500);
+});
 </script>
 
 <template>
 	<div class="min-h-screen bg-background text-text-main flex flex-col">
+		<!-- ===== GLOBAL LOADING OVERLAY ===== -->
+		<div v-if="isAppLoading || isRouteLoading" class="fixed inset-0 flex items-center justify-center bg-background z-50">
+			<Loading :message="isAppLoading ? 'Loading application...' : 'Loading...'" />
+		</div>
+
 		<!-- ===== TOP HEADER ===== -->
 		<header
 			v-if="!isAuthPage"
