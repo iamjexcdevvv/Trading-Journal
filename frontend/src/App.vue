@@ -1,18 +1,25 @@
 <script setup>
-import { ref, computed } from "vue";
-import { useRoute } from "vue-router";
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
+import Loading from "./components/Loading.vue";
 import { Menu, LogOut } from "lucide-vue-next";
 import { useAuth } from "./composables/useAuth.js";
-import { useRouter } from "vue-router";
+import { useTrades } from "./composables/useTrades.js";
+import { useSocket } from "./composables/useSocket.js";
+import { useQueryClient } from "@tanstack/vue-query";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
+const { socket } = useSocket();
+const queryClient = useQueryClient();
 
 const route = useRoute();
 const router = useRouter();
 const { logout } = useAuth();
+const { clearTrades } = useTrades();
 
 const isMobileSidebarOpen = ref(false);
+const isAppLoading = ref(true);
 
 const isAuthPage = computed(() => {
 	return route.path === "/login" || route.path === "/register";
@@ -36,13 +43,46 @@ const handleLogout = async () => {
 		console.error("Logout error:", err);
 	} finally {
 		logout();
+		clearTrades();
 		router.push("/login");
 	}
 };
+
+onMounted(() => {
+	// Listen to real-time price alert trigger notifications
+	socket.on('alert-triggered', (data) => {
+		// Invalidate Vue Query cache to update status badges in the alerts view immediately
+		queryClient.invalidateQueries({ queryKey: ['alerts'] });
+		
+		// Show notification popup
+		alert(`ALERT TRIGGERED: ${data.alert.symbol} is ${data.actionMessage} at $${data.currentPrice}!`);
+	});
+
+	socket.on('alert-expired', (data) => {
+		queryClient.invalidateQueries({ queryKey: ['alerts'] });
+		console.log(`Alert expired: ${data.symbol}`);
+	});
+
+	// Live-update the journal when an exchange connection opens/closes a trade
+	socket.on('trade-synced', (trade) => {
+		queryClient.invalidateQueries({ queryKey: ['trades'] });
+		console.log(`Trade synced from ${trade.exchange}: ${trade.symbol} (${trade.status})`);
+	});
+
+	// Simulate initial app load
+	setTimeout(() => {
+		isAppLoading.value = false;
+	}, 500);
+});
 </script>
 
 <template>
 	<div class="min-h-screen bg-background text-text-main flex flex-col">
+		<!-- ===== GLOBAL LOADING OVERLAY ===== -->
+		<div v-if="isAppLoading" class="fixed inset-0 flex items-center justify-center bg-background z-50">
+			<Loading message="Loading application..." />
+		</div>
+
 		<!-- ===== TOP HEADER ===== -->
 		<header
 			v-if="!isAuthPage"

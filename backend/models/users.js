@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    username: {type: String, required: true, minlength: 3},
-    password: {type: String, required: true, minlength: 6},
-    hashedPassword: {type: String, required: true},
-    refreshToken: {type: String},
-    refreshTokenExpiry: {type: Date}
+    email: { type: String, required: false, unique: true, lowercase: true },
+    googleId: { type: String, unique: true },
+    username: {type: String, required: false, minlength: 3},
+    password: {type: String, required: false, minlength: 6},
+    hashedPassword: {type: String, required: false},
+    refreshToken: {type: String}
 })
 
 const User = mongoose.model('User', userSchema);
@@ -24,4 +25,8 @@ async function getUserById(id) {
     return await User.findById(id);
 }
 
-module.exports = { saveUser, getUser, getUserById };
+async function getUserByGoogleId(googleId, email) {
+    return await User.findOne({ $or: [{ googleId }, { email }] });
+}
+
+module.exports = { saveUser, getUser, getUserById, getUserByGoogleId };

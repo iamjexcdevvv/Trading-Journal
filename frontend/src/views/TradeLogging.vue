@@ -1,18 +1,24 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Plus, X } from "lucide-vue-next";
 import TradesList from "../components/TradesList.vue";
 import AddTradeModal from "../components/AddTradeModal.vue";
-import { useTrades, AVAILABLE_TAGS } from "../composables/useTrades.js";
+import EditTradeModal from "../components/EditTradeModal.vue";
+import Loading from "../components/Loading.vue";
+import { useTrades } from "../composables/useTrades.js";
 import { useAuth } from "../composables/useAuth.js";
+import { useTags } from "../composables/useTags.js";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import  apiFetch  from "../utils/api.js";
 
-const { isLoggedIn } = useAuth();
-
+const { isLoggedIn, token } = useAuth();
+const queryClient = useQueryClient();
 const route = useRoute();
 const router = useRouter();
 
-const { trades, addTrade, removeTrade } = useTrades();
+const { trades, addTrade, removeTrade, setTrades } = useTrades();
+const { tagNames } = useTags();
 const lastAddedId = ref(null);
 const isModalOpen = ref(route.query.autoOpen === "true");
 const selectedFilterTags = ref([]);
@@ -21,30 +27,34 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
 const filteredTrades = computed(() => {
 	if (selectedFilterTags.value.length === 0) return trades.value;
-	return trades.value.filter((trade) => 
-		trade.tags?.some(tag => selectedFilterTags.value.includes(tag))
+	return trades.value.filter((trade) =>
+		trade.tags?.some((tag) => selectedFilterTags.value.includes(tag)),
 	);
 });
 
 const handleAdd = (payload) => {
-	addTrade(payload);
-	lastAddedId.value = trades.value[0]?.id;
-	isModalOpen.value = false;
-	router.replace({ query: {} }); // Clear query params from URL
+	addTradeMutation.mutate(payload);
 };
 
 const handleRemoveTrade = async (id, _id) => {
-	const response = await fetch(`${apiUrl}/api/trades/${_id}`, {
-		method: "DELETE",
-		headers: { "Content-Type": "application/json" },
-	});
+	deleteTradeMutation.mutate(_id);
+};
 
-	if (!response.ok) {
-		console.error(`Failed to delete trade with id ${_id}:`, response.statusText);
-		return;
-	}
+const isEditModalOpen = ref(false);
+const editingTrade = ref(null);
 
-	removeTrade(id);
+const handleEditTrade = (trade) => {
+	editingTrade.value = trade;
+	isEditModalOpen.value = true;
+};
+
+const handleUpdate = ({ _id, payload }) => {
+	updateTradeMutation.mutate({ _id, payload });
+};
+
+const closeEditModal = () => {
+	isEditModalOpen.value = false;
+	editingTrade.value = null;
 };
 
 const openModal = () => {
@@ -76,25 +86,99 @@ const removeFilterTag = (tag) => {
 	}
 };
 
-onMounted(async () => {
-	if (isLoggedIn.value) {
-		try {
-			const response = await fetch(`${apiUrl}/api/trades`);
+const deleteTradeMutation = useMutation({
+	mutationFn: async (_id) => {
+		const response = await apiFetch(`${apiUrl}/api/trades/${_id}`, {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+		});
 
-			if (response.ok) {
-				const trades = await response.json();
-
-				trades.forEach((trade) => addTrade(trade));
-			} else {
-				console.error("Failed to fetch trades:", response.statusText);
-			}
-		} catch (error) {
-			console.error("Error fetching trades:", error);
+		return _id;
+	},
+	onSuccess: (deletedId) => {
+		// Find the local id corresponding to the _id
+		const tradeToDelete = trades.value.find((t) => t._id === deletedId);
+		if (tradeToDelete) {
+			removeTrade(tradeToDelete.id);
 		}
-	}
-
-    console.log("TradeLogging mounted");
+		queryClient.invalidateQueries(["trades"]);
+	},
 });
+
+const addTradeMutation = useMutation({
+	mutationFn: async (payload) => {
+		const response = await apiFetch(`${apiUrl}/api/trades`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(payload),
+		});
+
+		return response;
+	},
+	onSuccess: (data) => {
+		addTrade(data);
+		lastAddedId.value = trades.value[0]?.id;
+		isModalOpen.value = false;
+		router.replace({ query: {} });
+		queryClient.invalidateQueries(["trades"]);
+	},
+});
+
+const updateTradeMutation = useMutation({
+	mutationFn: async ({ _id, payload }) => {
+		const response = await apiFetch(`${apiUrl}/api/trades/${_id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(payload),
+		});
+
+		return response;
+	},
+	onSuccess: () => {
+		isEditModalOpen.value = false;
+		editingTrade.value = null;
+		queryClient.invalidateQueries(["trades"]);
+	},
+});
+
+const fetchTrades = async () => {
+	const response = await apiFetch(`${apiUrl}/api/trades`, {
+		method: "GET",
+		credentials: "include",
+		headers: {
+			"Content-Type": "application/json",
+		},
+	});
+
+	return response;
+};
+
+const {
+	data: cachedTrades,
+	isLoading,
+	isError,
+} = useQuery({
+	queryKey: ["trades"],
+	queryFn: fetchTrades,
+	staleTime: 5 * 60 * 1000,
+	enabled: isLoggedIn.value,
+	refetchOnWindowFocus: true,
+	refetchOnReconnect: true,
+});
+
+// Sync cached data with local trades state
+watch(
+	cachedTrades,
+	(newTrades) => {
+		if (newTrades) {
+			setTrades(newTrades);
+		}
+	},
+	{ immediate: true },
+);
 </script>
 
 <template>
@@ -108,12 +192,16 @@ onMounted(async () => {
 					Trade Logging
 				</span>
 				<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
-					{{ filteredTrades.length }} {{ filteredTrades.length === 1 ? "entry" : "entries" }}
+					{{ filteredTrades.length }}
+					{{ filteredTrades.length === 1 ? "entry" : "entries" }}
 				</span>
 			</div>
 			<div class="flex items-center gap-2">
 				<!-- Tag Filters -->
-				<div v-if="selectedFilterTags.length > 0" class="flex items-center gap-2 overflow-x-auto scrollbar-thin max-w-52 lg:max-w-88">
+				<div
+					v-if="selectedFilterTags.length > 0"
+					class="flex items-center gap-2 overflow-x-auto scrollbar-thin max-w-52 lg:max-w-88"
+				>
 					<div
 						v-for="tag in selectedFilterTags"
 						:key="tag"
@@ -143,19 +231,21 @@ onMounted(async () => {
 		</div>
 
 		<!-- Tag Filter Bar -->
-		<div class="lg:ml-34 px-6 py-3 border-b border-border bg-surface/40 flex items-center gap-2 overflow-x-auto">
+		<div
+			class="lg:ml-34 px-6 py-3 border-b border-border bg-surface/40 flex items-center gap-2 overflow-x-auto"
+		>
 			<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase shrink-0">
 				Filter by tag:
 			</span>
 			<button
-				v-for="tag in AVAILABLE_TAGS"
+				v-for="tag in tagNames"
 				:key="tag"
 				@click="toggleFilterTag(tag)"
 				:class="[
 					'px-2.5 py-1 border font-mono text-[10px] tracking-wider uppercase transition-colors shrink-0',
 					selectedFilterTags.includes(tag)
 						? 'border-primary text-primary bg-primary/10'
-						: 'border-border text-text-muted hover:text-text-main hover:border-primary/50'
+						: 'border-border text-text-muted hover:text-text-main hover:border-primary/50',
 				]"
 			>
 				{{ tag }}
@@ -163,11 +253,24 @@ onMounted(async () => {
 		</div>
 
 		<!-- Ledger -->
-		<section class="flex-1 grid-bg min-h-[66vh] overflow-hidden" data-testid="ledger-area">
-			<TradesList :trades="filteredTrades" :last-added-id="lastAddedId" @delete="handleRemoveTrade" />
+		<section class="flex-1 grid-bg min-h-[66vh] overflow-hidden relative" data-testid="ledger-area">
+			<!-- Loading Overlay -->
+			<div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+				<Loading message="Loading trades..." />
+			</div>
+			
+			<TradesList
+				:trades="filteredTrades"
+				:last-added-id="lastAddedId"
+				@delete="handleRemoveTrade"
+				@edit="handleEditTrade"
+			/>
 		</section>
 
 		<!-- Add Trade Modal -->
 		<AddTradeModal :is-open="isModalOpen" @close="closeModal" @submit="handleAdd" />
+
+		<!-- Edit Trade Modal -->
+		<EditTradeModal :is-open="isEditModalOpen" :trade="editingTrade" @close="closeEditModal" @submit="handleUpdate" />
 	</div>
 </template>
