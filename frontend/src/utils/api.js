@@ -42,7 +42,7 @@ const apiFetch = async (url, options = {}, retry = true) => {
     }
 
     setToken(null);
-    window.location.href = '/login'
+    // Router guard will handle redirect to login
   }
 
   if (!response.ok) {

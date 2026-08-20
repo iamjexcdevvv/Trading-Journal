@@ -9,8 +9,23 @@ const tradeSchema = new mongoose.Schema({
     notes: String,
     pnl: Number,
     screenshot: String,
-    tags: [String]
+    tags: [String],
+    exchange: { type: String, enum: ['manual', 'binance', 'okx', 'bitunix'], default: 'manual' },
+    externalId: String,
+    status: { type: String, enum: ['open', 'closed'], default: 'closed' },
+    entryPrice: Number,
+    exitPrice: Number,
+    qty: Number,
+    leverage: Number,
+    fee: Number
 });
+
+// Partial (not sparse) so manual entries — which never set externalId — can't collide with
+// each other; only docs that actually have an externalId are subject to the unique constraint.
+tradeSchema.index(
+    { userId: 1, exchange: 1, externalId: 1 },
+    { unique: true, partialFilterExpression: { externalId: { $exists: true } } }
+);
 
 const Trade = mongoose.model('Trade', tradeSchema);
 
@@ -40,11 +55,22 @@ async function updateTradeById(id, tradeData) {
     return await Trade.findByIdAndUpdate(id, { $set: tradeData }, { returnDocument: 'after', runValidators: true });
 }
 
+async function findSyncedTrade(userId, exchange, externalId) {
+    return await Trade.findOne({ userId, exchange, externalId });
+}
+
+async function closeSyncedTrade(id, closeData) {
+    return await Trade.findByIdAndUpdate(id, { $set: { status: 'closed', ...closeData } }, { returnDocument: 'after' });
+}
+
 module.exports = {
+    Trade,
     createTrade,
     getTradesByUserId,
     deleteTradeById,
     updateTradeNotesById,
     updateTradeScreenshotById,
-    updateTradeById
+    updateTradeById,
+    findSyncedTrade,
+    closeSyncedTrade
 };

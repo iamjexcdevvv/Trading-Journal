@@ -6,8 +6,12 @@ import Loading from "./components/Loading.vue";
 import { Menu, LogOut } from "lucide-vue-next";
 import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
+import { useSocket } from "./composables/useSocket.js";
+import { useQueryClient } from "@tanstack/vue-query";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
+const { socket } = useSocket();
+const queryClient = useQueryClient();
 
 const route = useRoute();
 const router = useRouter();
@@ -45,6 +49,26 @@ const handleLogout = async () => {
 };
 
 onMounted(() => {
+	// Listen to real-time price alert trigger notifications
+	socket.on('alert-triggered', (data) => {
+		// Invalidate Vue Query cache to update status badges in the alerts view immediately
+		queryClient.invalidateQueries({ queryKey: ['alerts'] });
+		
+		// Show notification popup
+		alert(`ALERT TRIGGERED: ${data.alert.symbol} is ${data.actionMessage} at $${data.currentPrice}!`);
+	});
+
+	socket.on('alert-expired', (data) => {
+		queryClient.invalidateQueries({ queryKey: ['alerts'] });
+		console.log(`Alert expired: ${data.symbol}`);
+	});
+
+	// Live-update the journal when an exchange connection opens/closes a trade
+	socket.on('trade-synced', (trade) => {
+		queryClient.invalidateQueries({ queryKey: ['trades'] });
+		console.log(`Trade synced from ${trade.exchange}: ${trade.symbol} (${trade.status})`);
+	});
+
 	// Simulate initial app load
 	setTimeout(() => {
 		isAppLoading.value = false;
