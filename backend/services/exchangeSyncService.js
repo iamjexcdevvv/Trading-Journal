@@ -1,4 +1,4 @@
-const { Trade, createTrade, findSyncedTrade, closeSyncedTrade } = require('../models/trades');
+const { Trade, createTrade, updateTradeById, findSyncedTrade, closeSyncedTrade } = require('../models/trades');
 const { ExchangeConnection, updateConnectionStatus, updateLastSyncedAt } = require('../models/exchangeConnections');
 const { decrypt } = require('../utils/encryption');
 const { getAdapter } = require('./exchanges');
@@ -40,14 +40,15 @@ async function closePosition(connection, trade) {
     const creds = decryptCreds(connection);
     const sinceMs = trade.date ? trade.date.getTime() : Date.now() - 24 * 60 * 60 * 1000;
 
-    let fills = [];
+    let fills;
     try {
         fills = await adapter.getFillsSince(creds, trade.symbol, sinceMs);
     } catch (err) {
-        console.error(`Failed to fetch closing fills for trade ${trade._id}:`, err.message);
+        console.error(`Failed to fetch closing fills for trade ${trade._id}, will retry:`, err.message);
+        return;
     }
 
-    const closingFills = fills.filter(f => f.time >= sinceMs);
+    const closingFills = fills.filter(f => f.time >= sinceMs && (!f.side || f.side === trade.direction));
     const pnl = closingFills.reduce((sum, f) => sum + (f.pnl || 0), 0);
     const fee = closingFills.reduce((sum, f) => sum + (f.fee || 0), 0);
     const lastFill = closingFills[closingFills.length - 1];
@@ -84,6 +85,24 @@ async function handlePositionUpdate(connection, position) {
             status: 'open',
             date: new Date(),
             strategy: 'Synced'
+        });
+        emitSync(connection.userId, trade);
+    } else if (existing.status !== 'open') {
+        // externalId isn't guaranteed unique per position lifecycle on every exchange
+        // (e.g. Binance reuses `${symbol}-${positionSide}`), so a reopened position on the
+        // same symbol/side maps back to this already-closed row. Reset it instead of creating
+        // a new one, or the unique {userId, exchange, externalId} index would reject the insert.
+        const trade = await updateTradeById(existing._id, {
+            symbol: position.symbol,
+            direction: position.direction,
+            entryPrice: position.entryPrice,
+            qty: position.qty,
+            leverage: position.leverage,
+            status: 'open',
+            date: new Date(),
+            exitPrice: null,
+            pnl: null,
+            fee: null
         });
         emitSync(connection.userId, trade);
     }

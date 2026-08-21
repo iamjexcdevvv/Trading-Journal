@@ -2,7 +2,8 @@
 //   id, requiresPassphrase, supportsRealtime
 //   testConnection(creds) -> throws if credentials are invalid
 //   getOpenPositions(creds) -> [{ externalId, symbol, direction, entryPrice, qty, leverage }]
-//   getFillsSince(creds, symbol, sinceMs) -> [{ price, qty, pnl, fee, time }]
+//   getFillsSince(creds, symbol, sinceMs) -> [{ price, qty, pnl, fee, time, side }]
+//     side is 'Long' | 'Short' | null (null when the exchange doesn't distinguish, e.g. one-way mode)
 //   connectStream(creds, { onPositionUpdate, onError }) -> { stop() }   -- only if supportsRealtime
 //     onPositionUpdate receives one position at a time; qty === 0 means that position just closed.
 const REQUIRED_METHODS = ['testConnection', 'getOpenPositions', 'getFillsSince'];

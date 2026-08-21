@@ -65,7 +65,8 @@ async function getFillsSince(creds, symbol, sinceMs) {
             qty: parseFloat(r.closeTotalPos),
             pnl: parseFloat(r.pnl),
             fee: parseFloat(r.fee),
-            time: Number(r.uTime)
+            time: Number(r.uTime),
+            side: r.posSide === 'long' ? 'Long' : r.posSide === 'short' ? 'Short' : null
         }));
 }
 
