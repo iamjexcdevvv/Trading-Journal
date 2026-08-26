@@ -21,14 +21,22 @@ const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
 const selectedTags = ref([]);
 const tradeDate = ref(new Date().toISOString().split('T')[0]);
-const setup = ref("");
 const checklist = ref([]);
 
-// Rebuild the checklist whenever the chosen setup changes
-watch(setup, (newSetupName) => {
-	const matched = (setups.value || []).find((s) => s.name === newSetupName);
-	checklist.value = (matched?.items || []).map((label) => ({ label, checked: false }));
-});
+// A strategy has at most one setup (enforced in SetupsManager), so picking a strategy
+// is enough to find its confluences — no separate setup picker needed.
+const matchedSetup = computed(() => (setups.value || []).find((s) => s.name === strategy.value));
+
+// Rebuild the checklist whenever the chosen strategy (and therefore its setup) changes
+watch(strategy, (newStrategy) => {
+	const matched = (setups.value || []).find((s) => s.name === newStrategy);
+	// Older setups may still have plain-string items (pre-migration) — normalize here.
+	checklist.value = (matched?.items || []).map((item) =>
+		typeof item === "string"
+			? { label: item, checked: false, required: true }
+			: { label: item.label, checked: false, required: item.required !== false }
+	);
+}, { immediate: true });
 
 const toggleChecklistItem = (index) => {
 	checklist.value[index].checked = !checklist.value[index].checked;
@@ -105,8 +113,8 @@ const onSubmit = () => {
 		pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
 		screenshot: screenshot.value,
 		tags: [...selectedTags.value],
-		setup: setup.value,
-		checklist: checklist.value.map(({ label, checked }) => ({ label, checked })),
+		setup: matchedSetup.value?.name || "",
+		checklist: checklist.value.map(({ label, checked, required }) => ({ label, checked, required })),
 	});
 
 	resetInputs();
@@ -121,7 +129,6 @@ const resetInputs = () => {
 	pnl.value = "";
 	selectedTags.value = [];
 	tradeDate.value = new Date().toISOString().split('T')[0];
-	setup.value = "";
 	checklist.value = [];
 	clearScreenshot();
 	setTimeout(() => (justSubmitted.value = false), 1200);
@@ -293,32 +300,6 @@ const toggleTag = (tag) => {
 			</div>
 		</div>
 
-		<!-- Setup -->
-		<div class="flex flex-col gap-1.5">
-			<label
-				for="setup"
-				class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-			>
-				Setup
-			</label>
-			<select
-				id="setup"
-				v-model="setup"
-				class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
-				data-testid="trade-setup-select"
-			>
-				<option value="" class="bg-background">No setup…</option>
-				<option
-					v-for="s in setups || []"
-					:key="s._id"
-					:value="s.name"
-					class="bg-background text-text-main"
-				>
-					{{ s.name }}
-				</option>
-			</select>
-		</div>
-
 		<!-- Confluences / Confirmations Checklist -->
 		<div v-if="checklist.length > 0" class="flex flex-col gap-1.5">
 			<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1.5">
@@ -345,6 +326,9 @@ const toggleTag = (tag) => {
 						]"
 					>
 						{{ item.label }}
+						<span v-if="!item.required" class="ml-1 font-mono text-[10px] text-text-muted/50 tracking-widest uppercase">
+							optional
+						</span>
 					</span>
 				</label>
 			</div>

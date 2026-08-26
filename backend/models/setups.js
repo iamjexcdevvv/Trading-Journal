@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const setupSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
-    items: { type: [String], default: [] },
+    items: { type: [{ label: String, required: { type: Boolean, default: true }, _id: false }], default: [] },
 });
 
 // One setup per strategy per user — the frontend already filters the strategy picker to

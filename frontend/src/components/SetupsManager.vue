@@ -45,10 +45,13 @@ const closeModal = () => {
 	newItemText.value = "";
 };
 
+// Older setups may still have plain-string items (pre-migration) — normalize on read.
+const normalizeItem = (item) => (typeof item === "string" ? { label: item, required: true } : item);
+
 const handleEdit = (setup) => {
 	editingSetup.value = setup;
 	newSetupName.value = setup.name;
-	newSetupItems.value = [...(setup.items || [])];
+	newSetupItems.value = (setup.items || []).map(normalizeItem);
 	newItemText.value = "";
 	isModalOpen.value = true;
 };
@@ -56,12 +59,16 @@ const handleEdit = (setup) => {
 const addItem = () => {
 	const text = newItemText.value.trim();
 	if (!text) return;
-	newSetupItems.value.push(text);
+	newSetupItems.value.push({ label: text, required: true });
 	newItemText.value = "";
 };
 
 const removeItem = (index) => {
 	newSetupItems.value.splice(index, 1);
+};
+
+const toggleItemRequired = (index) => {
+	newSetupItems.value[index].required = !newSetupItems.value[index].required;
 };
 
 const handleSubmit = () => {
@@ -146,12 +153,15 @@ const handleDelete = (id) => {
 				</div>
 				<ul v-if="(setup.items || []).length > 0" class="mt-2 space-y-1">
 					<li
-						v-for="(item, idx) in setup.items"
+						v-for="(item, idx) in setup.items.map(normalizeItem)"
 						:key="idx"
 						class="font-mono text-xs text-text-muted flex items-center gap-1.5"
 					>
 						<span class="text-text-muted/40">-</span>
-						{{ item }}
+						{{ item.label }}
+						<span v-if="!item.required" class="text-text-muted/40 tracking-widest uppercase text-[9px]">
+							optional
+						</span>
 					</li>
 				</ul>
 			</div>
@@ -240,14 +250,29 @@ const handleDelete = (id) => {
 									class="flex items-center justify-between px-2.5 py-1.5 bg-surface/30 border border-border rounded"
 									data-testid="setup-item-row"
 								>
-									<span class="font-sans text-xs text-text-main">{{ item }}</span>
-									<button
-										type="button"
-										@click="removeItem(idx)"
-										class="p-0.5 text-text-muted hover:text-danger transition-colors"
-									>
-										<X :size="12" :stroke-width="2.5" />
-									</button>
+									<span class="font-sans text-xs text-text-main">{{ item.label }}</span>
+									<div class="flex items-center gap-2">
+										<button
+											type="button"
+											@click="toggleItemRequired(idx)"
+											:class="[
+												'px-1.5 py-0.5 font-mono text-[9px] tracking-widest uppercase border rounded transition-colors',
+												item.required
+													? 'border-primary/40 text-primary'
+													: 'border-border text-text-muted',
+											]"
+											data-testid="setup-item-required-toggle"
+										>
+											{{ item.required ? 'Required' : 'Optional' }}
+										</button>
+										<button
+											type="button"
+											@click="removeItem(idx)"
+											class="p-0.5 text-text-muted hover:text-danger transition-colors"
+										>
+											<X :size="12" :stroke-width="2.5" />
+										</button>
+									</div>
 								</li>
 							</ul>
 						</div>

@@ -4,7 +4,10 @@ const Joi = require('joi');
 
 const setupSchema = Joi.object({
     name: Joi.string().required(),
-    items: Joi.array().items(Joi.string()).optional(),
+    items: Joi.array().items(Joi.object({
+        label: Joi.string().required(),
+        required: Joi.boolean().default(true),
+    })).optional(),
 })
 
 async function createSetup(req, res) {

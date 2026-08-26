@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight } from "lucide-vue-next";
+import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight, ListChecks } from "lucide-vue-next";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
@@ -103,6 +103,47 @@ const directionBreakdown = computed(() => {
 	return {
 		long: { count: longs.length, pnl: longPnl },
 		short: { count: shorts.length, pnl: shortPnl },
+	};
+});
+
+// Confluence adherence: how often required/optional checklist items were checked
+// off when a trade was logged. Ratio only — no "followed"/"missed" pass/fail framing.
+const confluenceAdherence = computed(() => {
+	const tradesWithChecklist = props.trades.filter((t) => (t.checklist || []).length > 0);
+
+	const overall = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0 };
+	const bySetup = {};
+
+	tradesWithChecklist.forEach((trade) => {
+		const setupName = trade.setup || "No Setup";
+		if (!bySetup[setupName]) {
+			bySetup[setupName] = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0, trades: 0 };
+		}
+		bySetup[setupName].trades++;
+
+		trade.checklist.forEach((item) => {
+			const bucket = item.required === false ? "optional" : "required";
+			overall[`${bucket}Total`]++;
+			bySetup[setupName][`${bucket}Total`]++;
+			if (item.checked) {
+				overall[`${bucket}Checked`]++;
+				bySetup[setupName][`${bucket}Checked`]++;
+			}
+		});
+	});
+
+	const pct = (checked, total) => (total > 0 ? (checked / total) * 100 : null);
+
+	return {
+		tradeCount: tradesWithChecklist.length,
+		requiredPct: pct(overall.requiredChecked, overall.requiredTotal),
+		optionalPct: pct(overall.optionalChecked, overall.optionalTotal),
+		bySetup: Object.entries(bySetup).map(([setupName, data]) => ({
+			setup: setupName,
+			trades: data.trades,
+			requiredPct: pct(data.requiredChecked, data.requiredTotal),
+			optionalPct: pct(data.optionalChecked, data.optionalTotal),
+		})),
 	};
 });
 
@@ -605,6 +646,83 @@ const maxCalendarPnl = computed(() => {
 					</div>
 				</div>
 			</div>
+
+				<!-- Confluence Adherence -->
+				<div
+					v-if="confluenceAdherence.tradeCount > 0"
+					class="border border-border bg-surface/40 p-4 mt-8"
+					data-testid="confluence-adherence"
+				>
+					<div class="flex items-center justify-between mb-4">
+						<div class="flex items-center gap-2">
+							<ListChecks :size="16" :stroke-width="2" class="text-text-muted" />
+							<span class="font-heading font-black text-sm tracking-widest uppercase">
+								Confluence Adherence
+							</span>
+						</div>
+						<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
+							{{ confluenceAdherence.tradeCount }} logged with checklist
+						</span>
+					</div>
+
+					<!-- Overall -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-3 bg-surface/30 rounded">
+						<div>
+							<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+								Required Confluences Checked
+							</span>
+							<span class="font-mono font-bold text-lg tabular-nums text-primary">
+								{{ confluenceAdherence.requiredPct !== null ? formatPercent(confluenceAdherence.requiredPct) : "—" }}
+							</span>
+						</div>
+						<div>
+							<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+								Optional Confluences Used
+							</span>
+							<span class="font-mono font-bold text-lg tabular-nums text-text-main">
+								{{ confluenceAdherence.optionalPct !== null ? formatPercent(confluenceAdherence.optionalPct) : "—" }}
+							</span>
+						</div>
+					</div>
+
+					<!-- Per setup -->
+					<div class="space-y-3">
+						<div
+							v-for="item in confluenceAdherence.bySetup"
+							:key="item.setup"
+							class="border-b border-border/60 pb-3 last:border-0 last:pb-0"
+						>
+							<div class="flex items-center justify-between mb-2">
+								<span class="font-sans text-sm text-text-main">{{ item.setup }}</span>
+								<span class="font-mono text-xs text-text-muted">
+									{{ item.trades }} trades
+								</span>
+							</div>
+							<div class="flex items-center gap-2 mb-1">
+								<div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
+									<div
+										class="h-full bg-primary transition-all duration-300"
+										:style="{ width: `${item.requiredPct ?? 0}%` }"
+									></div>
+								</div>
+								<span class="font-mono text-xs tabular-nums text-text-main w-24 text-right">
+									{{ item.requiredPct !== null ? `${formatPercent(item.requiredPct)} required` : "no required" }}
+								</span>
+							</div>
+							<div v-if="item.optionalPct !== null" class="flex items-center gap-2">
+								<div class="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+									<div
+										class="h-full bg-text-muted/60 transition-all duration-300"
+										:style="{ width: `${item.optionalPct}%` }"
+									></div>
+								</div>
+								<span class="font-mono text-[10px] tabular-nums text-text-muted w-24 text-right">
+									{{ formatPercent(item.optionalPct) }} optional
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
 		</div>
 	</div>
 </template>

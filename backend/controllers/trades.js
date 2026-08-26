@@ -12,6 +12,7 @@ const tradeSchema = Joi.object({
     checklist: Joi.array().items(Joi.object({
         label: Joi.string().required(),
         checked: Joi.boolean().required(),
+        required: Joi.boolean().default(true),
     })).optional(),
     notes: Joi.string().allow('').optional(),
     pnl: Joi.number().allow(null).optional(),

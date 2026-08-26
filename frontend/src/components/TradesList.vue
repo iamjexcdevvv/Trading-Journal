@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Pencil, Check, X as XIcon } from "lucide-vue-next";
+import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Pencil } from "lucide-vue-next";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
@@ -228,27 +228,7 @@ const handleEscape = (e) => {
 							</span>
 						</td>
 						<td class="px-4 py-3 font-sans text-sm text-text-main whitespace-nowrap align-top">
-							<div class="flex flex-col gap-1">
-								<span>{{ trade.strategy }}</span>
-								<span
-									v-if="trade.setup"
-									class="inline-flex w-fit items-center px-1.5 py-0.5 bg-primary/10 text-primary text-[9px] font-mono tracking-wider uppercase rounded border border-primary/30"
-								>
-									{{ trade.setup }}
-								</span>
-								<div v-if="trade.checklist && trade.checklist.length > 0" class="flex flex-col gap-0.5">
-									<div
-										v-for="(item, idx) in trade.checklist"
-										:key="idx"
-										class="flex items-center gap-1 font-mono text-[9px] tracking-wide"
-										:class="item.checked ? 'text-success' : 'text-text-muted/50'"
-									>
-										<Check v-if="item.checked" :size="9" :stroke-width="3" class="shrink-0" />
-										<XIcon v-else :size="9" :stroke-width="3" class="shrink-0" />
-										<span class="truncate max-w-32">{{ item.label }}</span>
-									</div>
-								</div>
-							</div>
+							{{ trade.strategy }}
 						</td>
 						<td class="px-4 py-3 w-48 min-w-48 max-w-48">
 							<span
