@@ -8,6 +8,11 @@ const tradeSchema = Joi.object({
     symbol: Joi.string().required(),
     direction: Joi.string().valid('Long', 'Short').required(),
     strategy: Joi.string().required(),
+    setup: Joi.string().allow('').optional(),
+    checklist: Joi.array().items(Joi.object({
+        label: Joi.string().required(),
+        checked: Joi.boolean().required(),
+    })).optional(),
     notes: Joi.string().allow('').optional(),
     pnl: Joi.number().allow(null).optional(),
     screenshot: Joi.string().uri().allow('').optional(),

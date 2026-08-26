@@ -3,6 +3,7 @@ import TradeLogging from "../views/TradeLogging.vue";
 import PnLAnalysis from "../views/PnLAnalysis.vue";
 import Calculator from "../views/Calculator.vue";
 import Settings from "../views/Settings.vue";
+import Setups from "../views/Setups.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import OAuthCallback from "../views/OAuthCallback.vue";
@@ -53,6 +54,12 @@ const routes = [
 		path: "/settings",
 		name: "Settings",
 		component: Settings,
+		meta: { requiresAuth: true },
+	},
+	{
+		path: "/setups",
+		name: "Setups",
+		component: Setups,
 		meta: { requiresAuth: true },
 	},
 ];

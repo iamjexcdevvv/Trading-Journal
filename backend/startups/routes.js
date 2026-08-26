@@ -6,6 +6,7 @@ const tradeRoutes = require('../routes/trades');
 const authRoutes = require('../routes/auth');
 const strategyRoutes = require('../routes/strategies');
 const tagRoutes = require('../routes/tags');
+const setupRoutes = require('../routes/setups');
 const alertRoutes = require('../routes/alerts');
 const connectionRoutes = require('../routes/connections');
 
@@ -23,6 +24,7 @@ module.exports = function (app, logger, globalRateLimiter) {
     app.use('/api/auth', authRoutes);
     app.use('/api/strategies', strategyRoutes);
     app.use('/api/tags', tagRoutes);
+    app.use('/api/setups', setupRoutes);
     app.use('/api/alerts', alertRoutes);
     app.use('/api/connections', connectionRoutes);
 

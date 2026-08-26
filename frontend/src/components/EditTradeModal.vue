@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, watch } from "vue";
-import { ArrowUpRight, ArrowDownRight, Check, X } from "lucide-vue-next";
+import { ArrowUpRight, ArrowDownRight, Check, X, ListChecks } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
 import { useTags } from "../composables/useTags.js";
+import { useSetups } from "../composables/useSetups.js";
 
 const props = defineProps({
 	isOpen: { type: Boolean, required: true },
@@ -13,6 +14,7 @@ const emit = defineEmits(["close", "submit"]);
 
 const { strategiesByDirection } = useStrategies();
 const { tagNames } = useTags();
+const { setups } = useSetups();
 
 const symbol = ref("");
 const direction = ref("Long");
@@ -21,6 +23,21 @@ const notes = ref("");
 const pnl = ref("");
 const selectedTags = ref([]);
 const tradeDate = ref("");
+const setup = ref("");
+const checklist = ref([]);
+
+const toggleChecklistItem = (index) => {
+	checklist.value[index].checked = !checklist.value[index].checked;
+};
+
+// Only rebuild when the user actually picks a different option in the dropdown —
+// not on programmatic prefill from the trade prop (see watch(props.trade) below),
+// otherwise a trade whose setup was since deleted/renamed would have its saved
+// checklist silently wiped instead of showing the historical record.
+const onSetupChange = () => {
+	const matched = (setups.value || []).find((s) => s.name === setup.value);
+	checklist.value = (matched?.items || []).map((label) => ({ label, checked: false }));
+};
 
 // Screenshot state
 const screenshotTab = ref("file"); // 'file' | 'link'
@@ -86,7 +103,9 @@ watch(
 			notes.value = newTrade.notes || "";
 			pnl.value = newTrade.pnl !== null && newTrade.pnl !== undefined ? newTrade.pnl.toString() : "";
 			selectedTags.value = newTrade.tags ? [...newTrade.tags] : [];
-			
+			setup.value = newTrade.setup || "";
+			checklist.value = newTrade.checklist ? newTrade.checklist.map((item) => ({ ...item })) : [];
+
 			// Format date correctly to YYYY-MM-DD
 			if (newTrade.date) {
 				tradeDate.value = newTrade.date.split("T")[0];
@@ -175,6 +194,8 @@ const onSubmit = () => {
 			pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
 			screenshot: screenshot.value,
 			tags: [...selectedTags.value],
+			setup: setup.value,
+			checklist: checklist.value.map(({ label, checked }) => ({ label, checked })),
 		}
 	});
 };
@@ -362,6 +383,64 @@ const onSubmit = () => {
 											<X :size="10" :stroke-width="2.5" />
 										</button>
 									</span>
+								</div>
+							</div>
+
+							<!-- Setup -->
+							<div class="flex flex-col gap-1.5">
+								<label
+									for="edit-setup"
+									class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+								>
+									Setup
+								</label>
+								<select
+									id="edit-setup"
+									v-model="setup"
+									@change="onSetupChange"
+									class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
+									data-testid="edit-trade-setup-select"
+								>
+									<option value="" class="bg-background">No setup…</option>
+									<option
+										v-for="s in setups || []"
+										:key="s._id"
+										:value="s.name"
+										class="bg-background text-text-main"
+									>
+										{{ s.name }}
+									</option>
+								</select>
+							</div>
+
+							<!-- Confluences / Confirmations Checklist -->
+							<div v-if="checklist.length > 0" class="flex flex-col gap-1.5">
+								<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1.5">
+									<ListChecks :size="12" :stroke-width="2" />
+									Confluences / Confirmations
+								</span>
+								<div class="flex flex-col gap-2 border border-border p-3 bg-surface/20" data-testid="edit-trade-checklist">
+									<label
+										v-for="(item, index) in checklist"
+										:key="index"
+										class="flex items-center gap-2.5 cursor-pointer group"
+										data-testid="edit-checklist-item"
+									>
+										<input
+											type="checkbox"
+											:checked="item.checked"
+											@change="toggleChecklistItem(index)"
+											class="w-4 h-4 accent-primary cursor-pointer"
+										/>
+										<span
+											:class="[
+												'font-sans text-sm transition-colors',
+												item.checked ? 'text-text-main' : 'text-text-muted group-hover:text-text-main',
+											]"
+										>
+											{{ item.label }}
+										</span>
+									</label>
 								</div>
 							</div>
 

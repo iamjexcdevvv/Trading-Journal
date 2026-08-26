@@ -1,13 +1,15 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
-import { ArrowUpRight, ArrowDownRight, Check, X } from "lucide-vue-next";
+import { ArrowUpRight, ArrowDownRight, Check, X, ListChecks } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
 import { useTags } from "../composables/useTags.js";
+import { useSetups } from "../composables/useSetups.js";
 
 const route = useRoute();
 const { strategiesByDirection } = useStrategies();
 const { tagNames } = useTags();
+const { setups } = useSetups();
 
 const emit = defineEmits(["submit"]);
 
@@ -19,6 +21,18 @@ const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
 const selectedTags = ref([]);
 const tradeDate = ref(new Date().toISOString().split('T')[0]);
+const setup = ref("");
+const checklist = ref([]);
+
+// Rebuild the checklist whenever the chosen setup changes
+watch(setup, (newSetupName) => {
+	const matched = (setups.value || []).find((s) => s.name === newSetupName);
+	checklist.value = (matched?.items || []).map((label) => ({ label, checked: false }));
+});
+
+const toggleChecklistItem = (index) => {
+	checklist.value[index].checked = !checklist.value[index].checked;
+};
 
 // Screenshot state
 const screenshotTab = ref("file"); // 'file' | 'link'
@@ -91,6 +105,8 @@ const onSubmit = () => {
 		pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
 		screenshot: screenshot.value,
 		tags: [...selectedTags.value],
+		setup: setup.value,
+		checklist: checklist.value.map(({ label, checked }) => ({ label, checked })),
 	});
 
 	resetInputs();
@@ -105,6 +121,8 @@ const resetInputs = () => {
 	pnl.value = "";
 	selectedTags.value = [];
 	tradeDate.value = new Date().toISOString().split('T')[0];
+	setup.value = "";
+	checklist.value = [];
 	clearScreenshot();
 	setTimeout(() => (justSubmitted.value = false), 1200);
 };
@@ -272,6 +290,63 @@ const toggleTag = (tag) => {
 						<X :size="10" :stroke-width="2.5" />
 					</button>
 				</span>
+			</div>
+		</div>
+
+		<!-- Setup -->
+		<div class="flex flex-col gap-1.5">
+			<label
+				for="setup"
+				class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+			>
+				Setup
+			</label>
+			<select
+				id="setup"
+				v-model="setup"
+				class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
+				data-testid="trade-setup-select"
+			>
+				<option value="" class="bg-background">No setup…</option>
+				<option
+					v-for="s in setups || []"
+					:key="s._id"
+					:value="s.name"
+					class="bg-background text-text-main"
+				>
+					{{ s.name }}
+				</option>
+			</select>
+		</div>
+
+		<!-- Confluences / Confirmations Checklist -->
+		<div v-if="checklist.length > 0" class="flex flex-col gap-1.5">
+			<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1.5">
+				<ListChecks :size="12" :stroke-width="2" />
+				Confluences / Confirmations
+			</span>
+			<div class="flex flex-col gap-2 border border-border p-3 bg-surface/20" data-testid="trade-checklist">
+				<label
+					v-for="(item, index) in checklist"
+					:key="index"
+					class="flex items-center gap-2.5 cursor-pointer group"
+					data-testid="checklist-item"
+				>
+					<input
+						type="checkbox"
+						:checked="item.checked"
+						@change="toggleChecklistItem(index)"
+						class="w-4 h-4 accent-primary cursor-pointer"
+					/>
+					<span
+						:class="[
+							'font-sans text-sm transition-colors',
+							item.checked ? 'text-text-main' : 'text-text-muted group-hover:text-text-main',
+						]"
+					>
+						{{ item.label }}
+					</span>
+				</label>
 			</div>
 		</div>
 
