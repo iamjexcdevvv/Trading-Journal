@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight, ListChecks } from "lucide-vue-next";
+import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight, ListChecks, ShieldCheck } from "lucide-vue-next";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
@@ -144,6 +144,46 @@ const confluenceAdherence = computed(() => {
 			requiredPct: pct(data.requiredChecked, data.requiredTotal),
 			optionalPct: pct(data.optionalChecked, data.optionalTotal),
 		})),
+	};
+});
+
+// Rule adherence: how often each configured trading rule was actually checked off
+// at log time. Sorted worst-first so the rule most often skipped surfaces on top —
+// this is a "what to work on" list, not a pass/fail gate (logging is never blocked on it).
+const ruleAdherence = computed(() => {
+	const tradesWithRules = props.trades.filter((t) => (t.rulesChecklist || []).length > 0);
+
+	const overall = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0 };
+	const byRule = {};
+
+	tradesWithRules.forEach((trade) => {
+		trade.rulesChecklist.forEach((item) => {
+			const bucket = item.required === false ? "optional" : "required";
+			overall[`${bucket}Total`]++;
+			if (item.checked) overall[`${bucket}Checked`]++;
+
+			if (!byRule[item.label]) {
+				byRule[item.label] = { checked: 0, total: 0, required: item.required !== false };
+			}
+			byRule[item.label].total++;
+			if (item.checked) byRule[item.label].checked++;
+		});
+	});
+
+	const pct = (checked, total) => (total > 0 ? (checked / total) * 100 : null);
+
+	return {
+		tradeCount: tradesWithRules.length,
+		requiredPct: pct(overall.requiredChecked, overall.requiredTotal),
+		optionalPct: pct(overall.optionalChecked, overall.optionalTotal),
+		byRule: Object.entries(byRule)
+			.map(([label, data]) => ({
+				label,
+				required: data.required,
+				total: data.total,
+				pct: pct(data.checked, data.total),
+			}))
+			.sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0)),
 	};
 });
 
@@ -718,6 +758,78 @@ const maxCalendarPnl = computed(() => {
 								</div>
 								<span class="font-mono text-[10px] tabular-nums text-text-muted w-24 text-right">
 									{{ formatPercent(item.optionalPct) }} optional
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Rule Adherence -->
+				<div
+					v-if="ruleAdherence.tradeCount > 0"
+					class="border border-border bg-surface/40 p-4 mt-8"
+					data-testid="rule-adherence"
+				>
+					<div class="flex items-center justify-between mb-4">
+						<div class="flex items-center gap-2">
+							<ShieldCheck :size="16" :stroke-width="2" class="text-text-muted" />
+							<span class="font-heading font-black text-sm tracking-widest uppercase">
+								Rule Adherence
+							</span>
+						</div>
+						<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
+							{{ ruleAdherence.tradeCount }} logged with rules
+						</span>
+					</div>
+
+					<!-- Overall -->
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-3 bg-surface/30 rounded">
+						<div>
+							<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+								Required Rules Followed
+							</span>
+							<span class="font-mono font-bold text-lg tabular-nums text-primary">
+								{{ ruleAdherence.requiredPct !== null ? formatPercent(ruleAdherence.requiredPct) : "—" }}
+							</span>
+						</div>
+						<div>
+							<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted block mb-1">
+								Optional Rules Followed
+							</span>
+							<span class="font-mono font-bold text-lg tabular-nums text-text-main">
+								{{ ruleAdherence.optionalPct !== null ? formatPercent(ruleAdherence.optionalPct) : "—" }}
+							</span>
+						</div>
+					</div>
+
+					<!-- Per rule, worst-first: what to work on -->
+					<div class="space-y-3">
+						<div
+							v-for="item in ruleAdherence.byRule"
+							:key="item.label"
+							class="border-b border-border/60 pb-3 last:border-0 last:pb-0"
+						>
+							<div class="flex items-center justify-between mb-2">
+								<span class="font-sans text-sm text-text-main">
+									{{ item.label }}
+									<span v-if="!item.required" class="ml-1 font-mono text-[9px] text-text-muted/50 tracking-widest uppercase">
+										optional
+									</span>
+								</span>
+								<span class="font-mono text-xs text-text-muted">
+									{{ item.total }} trades
+								</span>
+							</div>
+							<div class="flex items-center gap-2">
+								<div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
+									<div
+										class="h-full transition-all duration-300"
+										:class="(item.pct ?? 0) < 50 ? 'bg-danger' : 'bg-primary'"
+										:style="{ width: `${item.pct ?? 0}%` }"
+									></div>
+								</div>
+								<span class="font-mono text-xs tabular-nums text-text-main w-16 text-right">
+									{{ item.pct !== null ? formatPercent(item.pct) : "—" }}
 								</span>
 							</div>
 						</div>

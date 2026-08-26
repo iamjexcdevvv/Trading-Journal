@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { BookOpen, BarChart3, Calculator, Settings, ListChecks, X } from "lucide-vue-next";
+import { BookOpen, BarChart3, Calculator, Settings, ListChecks, ShieldCheck, X } from "lucide-vue-next";
 
 const props = defineProps({
 	isMobileOpen: { type: Boolean, default: false },
@@ -36,6 +36,12 @@ const navItems = computed(() => [
 		label: "Setups",
 		icon: ListChecks,
 		testid: "nav-setups",
+	},
+	{
+		path: "/trading-rules",
+		label: "Trading Rules",
+		icon: ShieldCheck,
+		testid: "nav-trading-rules",
 	},
 	{
 		path: "/settings",

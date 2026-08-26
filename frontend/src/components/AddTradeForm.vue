@@ -1,15 +1,17 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
-import { ArrowUpRight, ArrowDownRight, Check, X, ListChecks } from "lucide-vue-next";
+import { ArrowUpRight, ArrowDownRight, Check, X, ListChecks, ShieldCheck } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
 import { useTags } from "../composables/useTags.js";
 import { useSetups } from "../composables/useSetups.js";
+import { useTradingRules } from "../composables/useTradingRules.js";
 
 const route = useRoute();
 const { strategiesByDirection } = useStrategies();
 const { tagNames } = useTags();
 const { setups } = useSetups();
+const { tradingRules } = useTradingRules();
 
 const emit = defineEmits(["submit"]);
 
@@ -22,6 +24,21 @@ const pnl = ref(route.query.pnl || "");
 const selectedTags = ref([]);
 const tradeDate = ref(new Date().toISOString().split('T')[0]);
 const checklist = ref([]);
+const rulesChecklist = ref([]);
+
+// Trading rules apply to every trade regardless of strategy, so rebuild the checklist
+// whenever the configured rules change rather than tying it to a strategy selection.
+watch(tradingRules, (rules) => {
+	rulesChecklist.value = (rules || []).map((rule) => ({
+		label: rule.text,
+		checked: false,
+		required: rule.required !== false,
+	}));
+}, { immediate: true });
+
+const toggleRulesChecklistItem = (index) => {
+	rulesChecklist.value[index].checked = !rulesChecklist.value[index].checked;
+};
 
 // A strategy has at most one setup (enforced in SetupsManager), so picking a strategy
 // is enough to find its confluences — no separate setup picker needed.
@@ -115,6 +132,7 @@ const onSubmit = () => {
 		tags: [...selectedTags.value],
 		setup: matchedSetup.value?.name || "",
 		checklist: checklist.value.map(({ label, checked, required }) => ({ label, checked, required })),
+		rulesChecklist: rulesChecklist.value.map(({ label, checked, required }) => ({ label, checked, required })),
 	});
 
 	resetInputs();
@@ -130,6 +148,7 @@ const resetInputs = () => {
 	selectedTags.value = [];
 	tradeDate.value = new Date().toISOString().split('T')[0];
 	checklist.value = [];
+	rulesChecklist.value = rulesChecklist.value.map((item) => ({ ...item, checked: false }));
 	clearScreenshot();
 	setTimeout(() => (justSubmitted.value = false), 1200);
 };
@@ -297,6 +316,40 @@ const toggleTag = (tag) => {
 						<X :size="10" :stroke-width="2.5" />
 					</button>
 				</span>
+			</div>
+		</div>
+
+		<!-- Trading Rules Checklist -->
+		<div v-if="rulesChecklist.length > 0" class="flex flex-col gap-1.5">
+			<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1.5">
+				<ShieldCheck :size="12" :stroke-width="2" />
+				Trading Rules
+			</span>
+			<div class="flex flex-col gap-2 border border-border p-3 bg-surface/20" data-testid="trade-rules-checklist">
+				<label
+					v-for="(item, index) in rulesChecklist"
+					:key="index"
+					class="flex items-center gap-2.5 cursor-pointer group"
+					data-testid="rules-checklist-item"
+				>
+					<input
+						type="checkbox"
+						:checked="item.checked"
+						@change="toggleRulesChecklistItem(index)"
+						class="w-4 h-4 accent-primary cursor-pointer"
+					/>
+					<span
+						:class="[
+							'font-sans text-sm transition-colors',
+							item.checked ? 'text-text-main' : 'text-text-muted group-hover:text-text-main',
+						]"
+					>
+						{{ item.label }}
+						<span v-if="!item.required" class="ml-1 font-mono text-[10px] text-text-muted/50 tracking-widest uppercase">
+							optional
+						</span>
+					</span>
+				</label>
 			</div>
 		</div>
 

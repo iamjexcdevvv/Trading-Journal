@@ -8,6 +8,7 @@ const tradeSchema = new mongoose.Schema({
     strategy: String,
     setup: String,
     checklist: [{ label: String, checked: Boolean, required: { type: Boolean, default: true }, _id: false }],
+    rulesChecklist: [{ label: String, checked: Boolean, required: { type: Boolean, default: true }, _id: false }],
     notes: String,
     pnl: Number,
     screenshot: String,

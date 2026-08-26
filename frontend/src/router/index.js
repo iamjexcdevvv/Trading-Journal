@@ -4,6 +4,7 @@ import PnLAnalysis from "../views/PnLAnalysis.vue";
 import Calculator from "../views/Calculator.vue";
 import Settings from "../views/Settings.vue";
 import Setups from "../views/Setups.vue";
+import TradingRules from "../views/TradingRules.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import OAuthCallback from "../views/OAuthCallback.vue";
@@ -60,6 +61,12 @@ const routes = [
 		path: "/setups",
 		name: "Setups",
 		component: Setups,
+		meta: { requiresAuth: true },
+	},
+	{
+		path: "/trading-rules",
+		name: "TradingRules",
+		component: TradingRules,
 		meta: { requiresAuth: true },
 	},
 ];
