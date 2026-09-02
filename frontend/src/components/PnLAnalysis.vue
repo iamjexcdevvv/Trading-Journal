@@ -2,17 +2,32 @@
 import { computed, ref } from "vue";
 import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight, ListChecks, ShieldCheck } from "lucide-vue-next";
 import { useTradingRules } from "../composables/useTradingRules";
+import { useSetups } from "../composables/useSetups";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
 });
 
 const { tradingRules } = useTradingRules();
+const { setups } = useSetups();
 
 // Old trades keep a label-only snapshot of rules at log time (rulesChecklist has
 // no ruleId), so a deleted rule stays orphaned in that history forever unless we
 // filter it back out against the live rules list here.
 const activeRuleLabels = computed(() => new Set((tradingRules.value || []).map((r) => r.text)));
+
+// Same problem for setup confluences: trade.checklist snapshots {label, required}
+// off the setup's items at log time, no itemId link. Map setup name -> its current
+// confluence labels so deleted setups/items drop out of the breakdown below.
+const activeSetupItems = computed(() => {
+	const map = {};
+	(setups.value || []).forEach((setup) => {
+		map[setup.name] = new Set(
+			(setup.items || []).map((item) => (typeof item === "string" ? item : item.label))
+		);
+	});
+	return map;
+});
 
 const hasTrades = computed(() => props.trades.length > 0);
 
@@ -124,26 +139,31 @@ const confluenceAdherence = computed(() => {
 
 	tradesWithChecklist.forEach((trade) => {
 		const setupName = trade.setup || "No Setup";
+		const activeLabels = activeSetupItems.value[setupName];
+		if (setupName !== "No Setup" && !activeLabels) return; // setup itself was deleted
+
 		if (!bySetup[setupName]) {
 			bySetup[setupName] = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0, trades: 0, byLabel: {} };
 		}
 		bySetup[setupName].trades++;
 
-		trade.checklist.forEach((item) => {
-			const bucket = item.required === false ? "optional" : "required";
-			overall[`${bucket}Total`]++;
-			bySetup[setupName][`${bucket}Total`]++;
-			if (item.checked) {
-				overall[`${bucket}Checked`]++;
-				bySetup[setupName][`${bucket}Checked`]++;
-			}
+		trade.checklist
+			.filter((item) => setupName === "No Setup" || activeLabels.has(item.label))
+			.forEach((item) => {
+				const bucket = item.required === false ? "optional" : "required";
+				overall[`${bucket}Total`]++;
+				bySetup[setupName][`${bucket}Total`]++;
+				if (item.checked) {
+					overall[`${bucket}Checked`]++;
+					bySetup[setupName][`${bucket}Checked`]++;
+				}
 
-			if (!bySetup[setupName].byLabel[item.label]) {
-				bySetup[setupName].byLabel[item.label] = { checked: 0, total: 0, required: item.required !== false };
-			}
-			bySetup[setupName].byLabel[item.label].total++;
-			if (item.checked) bySetup[setupName].byLabel[item.label].checked++;
-		});
+				if (!bySetup[setupName].byLabel[item.label]) {
+					bySetup[setupName].byLabel[item.label] = { checked: 0, total: 0, required: item.required !== false };
+				}
+				bySetup[setupName].byLabel[item.label].total++;
+				if (item.checked) bySetup[setupName].byLabel[item.label].checked++;
+			});
 	});
 
 	const pct = (checked, total) => (total > 0 ? (checked / total) * 100 : null);
