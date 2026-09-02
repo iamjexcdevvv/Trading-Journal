@@ -12,19 +12,24 @@ const { tradingRules } = useTradingRules();
 const { setups } = useSetups();
 
 // Old trades keep a label-only snapshot of rules at log time (rulesChecklist has
-// no ruleId), so a deleted rule stays orphaned in that history forever unless we
-// filter it back out against the live rules list here.
-const activeRuleLabels = computed(() => new Set((tradingRules.value || []).map((r) => r.text)));
+// no ruleId), so a deleted rule stays orphaned in that history forever, and a
+// required/optional toggle never reaches past trades, unless we cross-check
+// against the live rules list (label -> current required flag) here.
+const activeRuleLabels = computed(() => new Map((tradingRules.value || []).map((r) => [r.text, r.required !== false])));
 
 // Same problem for setup confluences: trade.checklist snapshots {label, required}
-// off the setup's items at log time, no itemId link. Map setup name -> its current
-// confluence labels so deleted setups/items drop out of the breakdown below.
+// off the setup's items at log time, no itemId link. Map setup name -> label -> its
+// CURRENT required flag, so deleted items drop out and a required/optional toggle on
+// the Setup tab re-buckets every past trade instead of staying frozen at log time.
 const activeSetupItems = computed(() => {
 	const map = {};
 	(setups.value || []).forEach((setup) => {
-		map[setup.name] = new Set(
-			(setup.items || []).map((item) => (typeof item === "string" ? item : item.label))
-		);
+		const byLabel = new Map();
+		(setup.items || []).forEach((item) => {
+			if (typeof item === "string") byLabel.set(item, true);
+			else byLabel.set(item.label, item.required !== false);
+		});
+		map[setup.name] = byLabel;
 	});
 	return map;
 });
@@ -150,7 +155,10 @@ const confluenceAdherence = computed(() => {
 		trade.checklist
 			.filter((item) => setupName === "No Setup" || activeLabels.has(item.label))
 			.forEach((item) => {
-				const bucket = item.required === false ? "optional" : "required";
+				// Live required flag, not the frozen snapshot — a toggle on the Setup tab
+				// re-buckets this trade's history immediately.
+				const isRequired = setupName === "No Setup" ? item.required !== false : activeLabels.get(item.label);
+				const bucket = isRequired ? "required" : "optional";
 				overall[`${bucket}Total`]++;
 				bySetup[setupName][`${bucket}Total`]++;
 				if (item.checked) {
@@ -159,7 +167,7 @@ const confluenceAdherence = computed(() => {
 				}
 
 				if (!bySetup[setupName].byLabel[item.label]) {
-					bySetup[setupName].byLabel[item.label] = { checked: 0, total: 0, required: item.required !== false };
+					bySetup[setupName].byLabel[item.label] = { checked: 0, total: 0, required: isRequired };
 				}
 				bySetup[setupName].byLabel[item.label].total++;
 				if (item.checked) bySetup[setupName].byLabel[item.label].checked++;
@@ -200,12 +208,15 @@ const ruleAdherence = computed(() => {
 
 	tradesWithRules.forEach((trade) => {
 		trade.rulesChecklist.filter((item) => activeRuleLabels.value.has(item.label)).forEach((item) => {
-			const bucket = item.required === false ? "optional" : "required";
+			// Live required flag, not the frozen snapshot — a toggle on the Rules tab
+			// re-buckets this trade's history immediately.
+			const isRequired = activeRuleLabels.value.get(item.label);
+			const bucket = isRequired ? "required" : "optional";
 			overall[`${bucket}Total`]++;
 			if (item.checked) overall[`${bucket}Checked`]++;
 
 			if (!byRule[item.label]) {
-				byRule[item.label] = { checked: 0, total: 0, required: item.required !== false };
+				byRule[item.label] = { checked: 0, total: 0, required: isRequired };
 			}
 			byRule[item.label].total++;
 			if (item.checked) byRule[item.label].checked++;
