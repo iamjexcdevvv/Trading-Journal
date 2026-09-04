@@ -15,6 +15,7 @@ import {
 	Layers,
 	Radio,
 	PenLine,
+	Search,
 } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
 import { useExchangeSymbols, useLivePrice } from "../composables/useMarketData.js";
@@ -192,6 +193,8 @@ const EXCHANGES = [
 
 const lsExchange = ref("binance");
 const lsCoin = ref("");
+const lsCoinSearch = ref("");
+const lsCoinDropdownOpen = ref(false);
 const lsContractSize = ref(1);
 const lsPriceSource = ref("auto"); // 'auto' | 'manual'
 const lsManualPrice = ref(0);
@@ -203,6 +206,24 @@ const { price: lsLivePrice, subscribe: subscribeLivePrice, unsubscribe: unsubscr
 
 const lsIsValidCoin = computed(() => !!lsCoin.value && (lsSymbols.value || []).includes(lsCoin.value));
 
+const lsFilteredCoins = computed(() => {
+	const list = lsSymbols.value || [];
+	const q = lsCoinSearch.value.trim().toUpperCase();
+	if (!q) return list.slice(0, 50);
+	return list.filter((s) => s.includes(q)).slice(0, 50);
+});
+
+const pickCoin = (s) => {
+	lsCoin.value = s;
+	lsCoinSearch.value = s;
+	lsCoinDropdownOpen.value = false;
+};
+
+const onCoinSearchInput = () => {
+	lsCoin.value = "";
+	lsCoinDropdownOpen.value = true;
+};
+
 const lsEntryPrice = computed(() => {
 	if (lsPriceSource.value === "manual") return lsManualPrice.value || 0;
 	return lsLivePrice.value || 0;
@@ -211,6 +232,7 @@ const lsEntryPrice = computed(() => {
 // Reset the selected coin whenever the exchange changes (symbol lists don't overlap)
 watch(lsExchange, () => {
 	lsCoin.value = "";
+	lsCoinSearch.value = "";
 });
 
 watch([lsCoin, lsPriceSource, lsExchange], ([coin, source, exchange]) => {
@@ -694,23 +716,57 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 								</option>
 							</select>
 						</div>
-						<div class="flex flex-col gap-1.5">
+						<div class="flex flex-col gap-1.5 relative">
 							<label
 								for="ls-coin"
 								class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1"
 								><Coins :size="11" /> Coin</label
 							>
-							<input
-								id="ls-coin"
-								v-model="lsCoin"
-								list="ls-coin-options"
-								type="text"
-								:placeholder="lsSymbolsLoading ? 'Loading pairs...' : 'e.g. BTCUSDT'"
-								class="bg-transparent border border-border px-3 py-2 font-mono text-sm tracking-wider uppercase text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-							/>
-							<datalist id="ls-coin-options">
-								<option v-for="s in lsSymbols || []" :key="s" :value="s" />
-							</datalist>
+							<div class="relative">
+								<Search
+									:size="12"
+									class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted/60"
+								/>
+								<input
+									id="ls-coin"
+									v-model="lsCoinSearch"
+									type="text"
+									autocomplete="off"
+									:placeholder="lsSymbolsLoading ? 'Loading pairs...' : 'Search coin e.g. BTC'"
+									class="w-full bg-transparent border border-border pl-7 pr-3 py-2 font-mono text-sm tracking-wider uppercase text-text-main placeholder:text-text-muted/40 placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+									@input="onCoinSearchInput"
+									@focus="lsCoinDropdownOpen = true"
+									@keydown.esc="lsCoinDropdownOpen = false"
+									@blur="lsCoinDropdownOpen = false"
+								/>
+							</div>
+
+							<!-- Search results dropdown -->
+							<ul
+								v-if="lsCoinDropdownOpen"
+								class="absolute top-full mt-1 left-0 right-0 z-20 max-h-48 overflow-y-auto bg-background border border-border rounded-md shadow-lg"
+							>
+								<li v-if="lsSymbolsLoading" class="px-3 py-2 font-mono text-xs text-text-muted">
+									Loading pairs...
+								</li>
+								<li
+									v-else-if="lsFilteredCoins.length === 0"
+									class="px-3 py-2 font-mono text-xs text-text-muted"
+								>
+									No matches
+								</li>
+								<li
+									v-for="s in lsFilteredCoins"
+									:key="s"
+									@mousedown.prevent="pickCoin(s)"
+									:class="[
+										'px-3 py-1.5 font-mono text-xs uppercase tracking-wider cursor-pointer hover:bg-primary/10 hover:text-primary',
+										s === lsCoin ? 'text-primary bg-primary/5' : 'text-text-main',
+									]"
+								>
+									{{ s }}
+								</li>
+							</ul>
 						</div>
 					</div>
 
