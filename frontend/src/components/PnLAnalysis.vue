@@ -1,9 +1,37 @@
 <script setup>
 import { computed, ref } from "vue";
 import { Calendar, Target, BarChart3, ChevronLeft, ChevronRight, ListChecks, ShieldCheck } from "lucide-vue-next";
+import { useTradingRules } from "../composables/useTradingRules";
+import { useSetups } from "../composables/useSetups";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
+});
+
+const { tradingRules } = useTradingRules();
+const { setups } = useSetups();
+
+// Old trades keep a label-only snapshot of rules at log time (rulesChecklist has
+// no ruleId), so a deleted rule stays orphaned in that history forever, and a
+// required/optional toggle never reaches past trades, unless we cross-check
+// against the live rules list (label -> current required flag) here.
+const activeRuleLabels = computed(() => new Map((tradingRules.value || []).map((r) => [r.text, r.required !== false])));
+
+// Same problem for setup confluences: trade.checklist snapshots {label, required}
+// off the setup's items at log time, no itemId link. Map setup name -> label -> its
+// CURRENT required flag, so deleted items drop out and a required/optional toggle on
+// the Setup tab re-buckets every past trade instead of staying frozen at log time.
+const activeSetupItems = computed(() => {
+	const map = {};
+	(setups.value || []).forEach((setup) => {
+		const byLabel = new Map();
+		(setup.items || []).forEach((item) => {
+			if (typeof item === "string") byLabel.set(item, true);
+			else byLabel.set(item.label, item.required !== false);
+		});
+		map[setup.name] = byLabel;
+	});
+	return map;
 });
 
 const hasTrades = computed(() => props.trades.length > 0);
@@ -116,20 +144,34 @@ const confluenceAdherence = computed(() => {
 
 	tradesWithChecklist.forEach((trade) => {
 		const setupName = trade.setup || "No Setup";
+		const activeLabels = activeSetupItems.value[setupName];
+		if (setupName !== "No Setup" && !activeLabels) return; // setup itself was deleted
+
 		if (!bySetup[setupName]) {
-			bySetup[setupName] = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0, trades: 0 };
+			bySetup[setupName] = { requiredChecked: 0, requiredTotal: 0, optionalChecked: 0, optionalTotal: 0, trades: 0, byLabel: {} };
 		}
 		bySetup[setupName].trades++;
 
-		trade.checklist.forEach((item) => {
-			const bucket = item.required === false ? "optional" : "required";
-			overall[`${bucket}Total`]++;
-			bySetup[setupName][`${bucket}Total`]++;
-			if (item.checked) {
-				overall[`${bucket}Checked`]++;
-				bySetup[setupName][`${bucket}Checked`]++;
-			}
-		});
+		trade.checklist
+			.filter((item) => setupName === "No Setup" || activeLabels.has(item.label))
+			.forEach((item) => {
+				// Live required flag, not the frozen snapshot — a toggle on the Setup tab
+				// re-buckets this trade's history immediately.
+				const isRequired = setupName === "No Setup" ? item.required !== false : activeLabels.get(item.label);
+				const bucket = isRequired ? "required" : "optional";
+				overall[`${bucket}Total`]++;
+				bySetup[setupName][`${bucket}Total`]++;
+				if (item.checked) {
+					overall[`${bucket}Checked`]++;
+					bySetup[setupName][`${bucket}Checked`]++;
+				}
+
+				if (!bySetup[setupName].byLabel[item.label]) {
+					bySetup[setupName].byLabel[item.label] = { checked: 0, total: 0, required: isRequired };
+				}
+				bySetup[setupName].byLabel[item.label].total++;
+				if (item.checked) bySetup[setupName].byLabel[item.label].checked++;
+			});
 	});
 
 	const pct = (checked, total) => (total > 0 ? (checked / total) * 100 : null);
@@ -143,6 +185,14 @@ const confluenceAdherence = computed(() => {
 			trades: data.trades,
 			requiredPct: pct(data.requiredChecked, data.requiredTotal),
 			optionalPct: pct(data.optionalChecked, data.optionalTotal),
+			items: Object.entries(data.byLabel)
+				.map(([label, item]) => ({
+					label,
+					required: item.required,
+					total: item.total,
+					pct: pct(item.checked, item.total),
+				}))
+				.sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0)),
 		})),
 	};
 });
@@ -157,13 +207,16 @@ const ruleAdherence = computed(() => {
 	const byRule = {};
 
 	tradesWithRules.forEach((trade) => {
-		trade.rulesChecklist.forEach((item) => {
-			const bucket = item.required === false ? "optional" : "required";
+		trade.rulesChecklist.filter((item) => activeRuleLabels.value.has(item.label)).forEach((item) => {
+			// Live required flag, not the frozen snapshot — a toggle on the Rules tab
+			// re-buckets this trade's history immediately.
+			const isRequired = activeRuleLabels.value.get(item.label);
+			const bucket = isRequired ? "required" : "optional";
 			overall[`${bucket}Total`]++;
 			if (item.checked) overall[`${bucket}Checked`]++;
 
 			if (!byRule[item.label]) {
-				byRule[item.label] = { checked: 0, total: 0, required: item.required !== false };
+				byRule[item.label] = { checked: 0, total: 0, required: isRequired };
 			}
 			byRule[item.label].total++;
 			if (item.checked) byRule[item.label].checked++;
@@ -759,6 +812,31 @@ const maxCalendarPnl = computed(() => {
 								<span class="font-mono text-[10px] tabular-nums text-text-muted w-24 text-right">
 									{{ formatPercent(item.optionalPct) }} optional
 								</span>
+							</div>
+
+							<!-- Individual confluences, worst-first -->
+							<div class="mt-2 pl-3 border-l border-border/40 space-y-1.5">
+								<div
+									v-for="conf in item.items"
+									:key="conf.label"
+									class="flex items-center gap-2"
+								>
+									<span class="font-sans text-xs text-text-muted flex-1 truncate">
+										{{ conf.label }}
+										<span v-if="!conf.required" class="ml-1 font-mono text-[9px] text-text-muted/50 tracking-widest uppercase">
+											optional
+										</span>
+									</span>
+									<div class="w-20 h-1.5 bg-border rounded-full overflow-hidden">
+										<div
+											class="h-full bg-primary/70 transition-all duration-300"
+											:style="{ width: `${conf.pct ?? 0}%` }"
+										></div>
+									</div>
+									<span class="font-mono text-[10px] tabular-nums text-text-muted w-10 text-right">
+										{{ conf.pct !== null ? formatPercent(conf.pct) : "—" }}
+									</span>
+								</div>
 							</div>
 						</div>
 					</div>
