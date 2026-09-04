@@ -17,6 +17,7 @@ const app = express();
 const jwt = require('jsonwebtoken');
 const { initAlertService, handlePriceUpdate, loadActiveAlerts } = require('./services/alertService');
 const { initExchangeSyncService, loadActiveConnections } = require('./services/exchangeSyncService');
+const { initPriceFeedService, subscribe: subscribePriceFeed, unsubscribe: unsubscribePriceFeed } = require('./services/priceFeedService');
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -28,6 +29,7 @@ const io = new Server(server, {
 
 initExchangeSyncService(io);
 loadActiveConnections();
+initPriceFeedService(io);
 
 let ws;
 
@@ -82,7 +84,16 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('subscribe-price', ({ exchange, symbol } = {}) => {
+        subscribePriceFeed(socket, exchange, symbol);
+    });
+
+    socket.on('unsubscribe-price', () => {
+        unsubscribePriceFeed(socket);
+    });
+
     socket.on('disconnect', () => {
+        unsubscribePriceFeed(socket);
         console.log('A user disconnected from Socket.io');
     });
 });

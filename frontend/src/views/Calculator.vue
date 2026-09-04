@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import {
 	ArrowUpRight,
@@ -10,8 +10,14 @@ import {
 	DollarSign,
 	Percent,
 	Plus,
+	Link2,
+	Coins,
+	Layers,
+	Radio,
+	PenLine,
 } from "lucide-vue-next";
 import { useStrategies } from "../composables/useStrategies.js";
+import { useExchangeSymbols, useLivePrice } from "../composables/useMarketData.js";
 
 const router = useRouter();
 const { strategiesByDirection } = useStrategies();
@@ -175,6 +181,59 @@ const expectedProfitUsd = computed(() => {
 const returnOnMargin = computed(() => {
 	if (marginAllocated.value <= 0) return 0;
 	return Number(((expectedProfitUsd.value / marginAllocated.value) * 100).toFixed(1));
+});
+
+// --- Lot Size Calculator ---
+const EXCHANGES = [
+	{ id: "binance", label: "Binance" },
+	{ id: "bybit", label: "Bybit" },
+	{ id: "bitunix", label: "Bitunix" },
+];
+
+const lsExchange = ref("binance");
+const lsCoin = ref("");
+const lsContractSize = ref(1);
+const lsPriceSource = ref("auto"); // 'auto' | 'manual'
+const lsManualPrice = ref(0);
+const lsStopLossPrice = ref(0);
+
+const { data: lsSymbols, isLoading: lsSymbolsLoading } = useExchangeSymbols(lsExchange);
+const { price: lsLivePrice, subscribe: subscribeLivePrice, unsubscribe: unsubscribeLivePrice } =
+	useLivePrice();
+
+const lsIsValidCoin = computed(() => !!lsCoin.value && (lsSymbols.value || []).includes(lsCoin.value));
+
+const lsEntryPrice = computed(() => {
+	if (lsPriceSource.value === "manual") return lsManualPrice.value || 0;
+	return lsLivePrice.value || 0;
+});
+
+// Reset the selected coin whenever the exchange changes (symbol lists don't overlap)
+watch(lsExchange, () => {
+	lsCoin.value = "";
+});
+
+watch([lsCoin, lsPriceSource, lsExchange], ([coin, source, exchange]) => {
+	if (source === "auto" && coin && (lsSymbols.value || []).includes(coin)) {
+		subscribeLivePrice(exchange, coin);
+	} else {
+		unsubscribeLivePrice();
+	}
+});
+
+onUnmounted(() => {
+	unsubscribeLivePrice();
+});
+
+const lotSize = computed(() => {
+	const priceDelta = Math.abs(lsEntryPrice.value - lsStopLossPrice.value);
+	if (priceDelta <= 0 || lsContractSize.value <= 0 || riskAmount.value <= 0) return 0;
+	return Number((riskAmount.value / (priceDelta * lsContractSize.value)).toFixed(4));
+});
+
+const lsPositionValueUsd = computed(() => {
+	if (lotSize.value <= 0 || lsEntryPrice.value <= 0) return 0;
+	return Number((lotSize.value * lsContractSize.value * lsEntryPrice.value).toFixed(2));
 });
 
 // Watch type switches to sync prices
@@ -606,6 +665,154 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 						</div>
 					</div>
 				</div>
+
+				<!-- Lot Size Calculator -->
+				<div class="flex flex-col gap-3 border-t border-border/40 pt-4">
+					<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+						>Lot Size Calculator</span
+					>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="flex flex-col gap-1.5">
+							<label
+								for="ls-exchange"
+								class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1"
+								><Link2 :size="11" /> Exchange</label
+							>
+							<select
+								id="ls-exchange"
+								v-model="lsExchange"
+								class="bg-transparent border border-border px-3 py-2 font-sans text-xs text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+							>
+								<option
+									v-for="ex in EXCHANGES"
+									:key="ex.id"
+									:value="ex.id"
+									class="bg-background text-text-main"
+								>
+									{{ ex.label }}
+								</option>
+							</select>
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label
+								for="ls-coin"
+								class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1"
+								><Coins :size="11" /> Coin</label
+							>
+							<input
+								id="ls-coin"
+								v-model="lsCoin"
+								list="ls-coin-options"
+								type="text"
+								:placeholder="lsSymbolsLoading ? 'Loading pairs...' : 'e.g. BTCUSDT'"
+								class="bg-transparent border border-border px-3 py-2 font-mono text-sm tracking-wider uppercase text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+							/>
+							<datalist id="ls-coin-options">
+								<option v-for="s in lsSymbols || []" :key="s" :value="s" />
+							</datalist>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="flex flex-col gap-1.5">
+							<label
+								for="ls-contract-size"
+								class="font-mono text-[10px] tracking-widest uppercase text-text-muted flex items-center gap-1"
+								><Layers :size="11" /> Contract Size</label
+							>
+							<input
+								id="ls-contract-size"
+								v-model.number="lsContractSize"
+								type="number"
+								step="0.0001"
+								min="0.0001"
+								class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+							/>
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label
+								for="ls-sl-price"
+								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+								>Stop Loss Price ($)</label
+							>
+							<input
+								id="ls-sl-price"
+								v-model.number="lsStopLossPrice"
+								type="number"
+								step="0.0001"
+								min="0"
+								class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+							/>
+						</div>
+					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center justify-between">
+							<span
+								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+								>Entry Price</span
+							>
+							<div class="flex gap-2 font-mono text-[9px]">
+								<button
+									type="button"
+									@click="lsPriceSource = 'auto'"
+									:class="[
+										'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider flex items-center gap-1',
+										lsPriceSource === 'auto'
+											? 'border-primary text-primary bg-primary/10'
+											: 'border-border text-text-muted hover:text-text-main',
+									]"
+								>
+									<Radio :size="10" /> Live
+								</button>
+								<button
+									type="button"
+									@click="lsPriceSource = 'manual'"
+									:class="[
+										'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider flex items-center gap-1',
+										lsPriceSource === 'manual'
+											? 'border-primary text-primary bg-primary/10'
+											: 'border-border text-text-muted hover:text-text-main',
+									]"
+								>
+									<PenLine :size="10" /> Manual
+								</button>
+							</div>
+						</div>
+
+						<input
+							v-if="lsPriceSource === 'manual'"
+							v-model.number="lsManualPrice"
+							type="number"
+							step="0.0001"
+							min="0"
+							placeholder="Enter price ($)"
+							class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+						/>
+						<div
+							v-else
+							class="bg-background/30 border border-border px-3 py-2 font-mono text-sm rounded-md flex items-center justify-between"
+						>
+							<span v-if="!lsIsValidCoin" class="text-text-muted text-xs"
+								>Select a coin to stream its live price</span
+							>
+							<span v-else-if="lsLivePrice === null" class="text-text-muted text-xs"
+								>Connecting...</span
+							>
+							<span v-else class="text-text-main font-bold"
+								>${{
+									lsLivePrice.toLocaleString(undefined, { maximumFractionDigits: 6 })
+								}}</span
+							>
+							<span
+								v-if="lsIsValidCoin"
+								class="w-1.5 h-1.5 rounded-full"
+								:class="lsLivePrice !== null ? 'bg-success animate-pulse' : 'bg-text-muted'"
+							/>
+						</div>
+					</div>
+				</div>
 			</form>
 
 			<!-- Right Side: Outputs & Calculations Dashboard (xl:col-span-5) -->
@@ -756,6 +963,47 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 									>
 									<p class="font-bold text-success mt-0.5">
 										+{{ returnOnMargin }}%
+									</p>
+								</div>
+							</div>
+						</div>
+						<!-- Lot Size Result -->
+						<div
+							class="bg-background/30 p-4 border border-border/60 rounded-md flex flex-col gap-2"
+						>
+							<p
+								class="font-mono text-[10px] text-text-muted uppercase tracking-wider border-b border-border/40 pb-1.5 flex items-center justify-between"
+							>
+								<span>Lot Size Calculator</span>
+								<span class="text-text-muted/70"
+									>{{ EXCHANGES.find((e) => e.id === lsExchange)?.label }}<template
+										v-if="lsCoin"
+									>
+										/ {{ lsCoin.toUpperCase() }}</template
+									></span
+								>
+							</p>
+
+							<div class="text-center py-1">
+								<p class="font-mono text-[10px] text-text-muted uppercase tracking-wider">
+									Lot Size (Contracts)
+								</p>
+								<p class="text-3xl font-heading font-black tracking-tight text-primary mt-1">
+									{{ lotSize > 0 ? lotSize : "—" }}
+								</p>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4 font-mono text-xs border-t border-border/30 pt-2">
+								<div>
+									<span class="text-text-muted text-[10px]">Entry Price Used</span>
+									<p class="font-bold text-text-main mt-0.5">
+										{{ lsEntryPrice > 0 ? `$${lsEntryPrice}` : "—" }}
+									</p>
+								</div>
+								<div>
+									<span class="text-text-muted text-[10px]">Position Value</span>
+									<p class="font-bold text-text-main mt-0.5">
+										${{ lsPositionValueUsd.toLocaleString() }}
 									</p>
 								</div>
 							</div>
