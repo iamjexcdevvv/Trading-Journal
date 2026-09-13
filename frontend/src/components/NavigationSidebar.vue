@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
-import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronDown, CircleHelp, LayoutDashboard, Library, LogOut, NotebookPen, ReceiptText, Settings, ShieldCheck, X } from "lucide-vue-next";
+import { BarChart3, Calculator, LayoutDashboard, Library, LogOut, ReceiptText, Settings, ShieldCheck, X } from "lucide-vue-next";
 import { useTrades } from "../composables/useTrades.js";
 
 defineProps({ isMobileOpen: { type: Boolean, default: false } });
@@ -11,13 +11,10 @@ const { trades } = useTrades();
 const navItems = [
 	{ path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ path: "/trade-logging", label: "Trades", icon: ReceiptText },
-	{ path: "/journal", label: "Journal", icon: NotebookPen },
-	{ path: "/calendar", label: "Calendar", icon: CalendarDays },
 	{ path: "/pnl-analysis", label: "Analytics", icon: BarChart3 },
 	{ path: "/calculator", label: "Calculator", icon: Calculator },
 	{ path: "/setups", label: "Playbook", icon: Library },
 	{ path: "/trading-rules", label: "Trading Rules", icon: ShieldCheck },
-	{ path: "/reports", label: "Reports", icon: BookOpen },
 ];
 function navigate(path) { router.push(path); emit("close"); }
 </script>
@@ -29,11 +26,6 @@ function navigate(path) { router.push(path); emit("close"); }
 			<div class="brand-copy"><strong>Plan2Profit</strong><span>Trading Journal</span></div>
 			<button class="sidebar-close" aria-label="Close menu" @click="emit('close')"><X :size="19" /></button>
 		</div>
-		<div class="workspace-switcher">
-			<div class="workspace-icon">ET</div>
-			<div><strong>Eric's workspace</strong><span>Pro plan</span></div>
-			<ChevronDown :size="15" />
-		</div>
 		<nav class="sidebar-nav">
 			<p class="nav-label">Workspace</p>
 			<button v-for="item in navItems" :key="item.path" :class="['nav-item', { active: route.path === item.path }]" @click="navigate(item.path)">
@@ -42,7 +34,6 @@ function navigate(path) { router.push(path); emit("close"); }
 		</nav>
 		<div class="sidebar-bottom">
 			<button class="nav-item" @click="navigate('/settings')"><Settings :size="18" /><span>Settings</span></button>
-			<button class="nav-item"><CircleHelp :size="18" /><span>Help & support</span></button>
 			<div class="profile-card">
 				<div class="profile-avatar">EH</div><div class="profile-copy"><strong>Eric Huang</strong><span>eric@plan2profit.co</span></div>
 				<button aria-label="Log out" @click="emit('logout')"><LogOut :size="17" /></button>

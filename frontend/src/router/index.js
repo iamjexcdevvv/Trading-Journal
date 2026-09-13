@@ -22,9 +22,6 @@ const routes = [
 		component: Dashboard,
 		meta: { requiresAuth: true, title: "Dashboard" },
 	},
-	{ path: "/journal", redirect: "/trade-logging" },
-	{ path: "/calendar", redirect: "/dashboard" },
-	{ path: "/reports", redirect: "/pnl-analysis" },
 	{
 		path: "/login",
 		name: "Login",

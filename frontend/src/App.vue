@@ -71,7 +71,6 @@ onUnmounted(() => {
 				</div>
 				<div class="topbar-actions">
 					<button class="toolbar-button hide-tablet"><CalendarDays :size="15" /><span>Sep 01 — Sep 13</span><ChevronDown :size="14" /></button>
-					<button class="toolbar-button account-button"><span class="status-dot"></span><span>FTMO • 100K</span><ChevronDown :size="14" /></button>
 					<button class="icon-button" aria-label="Search"><Search :size="18" /></button>
 					<button class="icon-button notification-button" aria-label="Notifications"><Bell :size="18" /><span></span></button>
 					<button class="topbar-avatar" aria-label="Open profile">EH</button>
