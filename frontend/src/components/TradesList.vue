@@ -123,7 +123,7 @@ const handleEscape = (e) => {
 		</div>
 
 		<!-- Table -->
-		<div v-else class="lg:ml-34 flex-1 overflow-auto">
+		<div v-else class="flex-1 overflow-auto">
 			<table class="w-full border-collapse" data-testid="trades-table">
 				<thead class="sticky top-0 z-10 bg-background/95 backdrop-blur">
 					<tr class="border-b border-border">

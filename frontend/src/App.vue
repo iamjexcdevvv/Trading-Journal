@@ -1,167 +1,83 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { Bell, CalendarDays, ChevronDown, Menu, Search } from "lucide-vue-next";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
-import Loading from "./components/Loading.vue";
-import { Menu, LogOut } from "lucide-vue-next";
 import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
 import { useSocket } from "./composables/useSocket.js";
 import { useQueryClient } from "@tanstack/vue-query";
 
-const apiURL = import.meta.env.VITE_API_BASE_URL;
-const { socket } = useSocket();
-const queryClient = useQueryClient();
-
 const route = useRoute();
 const router = useRouter();
 const { logout } = useAuth();
 const { clearTrades } = useTrades();
+const { socket } = useSocket();
+const queryClient = useQueryClient();
+const sidebarOpen = ref(false);
+const isAuthPage = computed(() => ["/login", "/register", "/auth/callback"].includes(route.path));
+const pageTitle = computed(() => route.meta.title || "Dashboard");
 
-const isMobileSidebarOpen = ref(false);
-const isAppLoading = ref(true);
-
-const isAuthPage = computed(() => {
-	return route.path === "/login" || route.path === "/register";
-});
-
-const toggleMobileSidebar = () => {
-	isMobileSidebarOpen.value = !isMobileSidebarOpen.value;
-};
-
-const closeMobileSidebar = () => {
-	isMobileSidebarOpen.value = false;
-};
-
-const handleLogout = async () => {
+async function handleLogout() {
 	try {
-		await fetch(`${apiURL}/api/auth/logout`, {
-			method: "POST",
-			credentials: "include",
-		});
-	} catch (err) {
-		console.error("Logout error:", err);
+		await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+	} catch (error) {
+		console.error("Logout error:", error);
 	} finally {
 		logout();
 		clearTrades();
 		router.push("/login");
 	}
-};
+}
+
+function handleAlertTriggered(data) {
+	queryClient.invalidateQueries({ queryKey: ["alerts"] });
+	if (data?.alert) alert(`ALERT TRIGGERED: ${data.alert.symbol} is ${data.actionMessage} at $${data.currentPrice}!`);
+}
+
+function handleAlertExpired(data) {
+	queryClient.invalidateQueries({ queryKey: ["alerts"] });
+	console.log(`Alert expired: ${data.symbol}`);
+}
+
+function handleTradeSynced(trade) {
+	queryClient.invalidateQueries({ queryKey: ["trades"] });
+	console.log(`Trade synced from ${trade.exchange}: ${trade.symbol} (${trade.status})`);
+}
 
 onMounted(() => {
-	// Listen to real-time price alert trigger notifications
-	socket.on('alert-triggered', (data) => {
-		// Invalidate Vue Query cache to update status badges in the alerts view immediately
-		queryClient.invalidateQueries({ queryKey: ['alerts'] });
-		
-		// Show notification popup
-		alert(`ALERT TRIGGERED: ${data.alert.symbol} is ${data.actionMessage} at $${data.currentPrice}!`);
-	});
+	socket.on("alert-triggered", handleAlertTriggered);
+	socket.on("alert-expired", handleAlertExpired);
+	socket.on("trade-synced", handleTradeSynced);
+});
 
-	socket.on('alert-expired', (data) => {
-		queryClient.invalidateQueries({ queryKey: ['alerts'] });
-		console.log(`Alert expired: ${data.symbol}`);
-	});
-
-	// Live-update the journal when an exchange connection opens/closes a trade
-	socket.on('trade-synced', (trade) => {
-		queryClient.invalidateQueries({ queryKey: ['trades'] });
-		console.log(`Trade synced from ${trade.exchange}: ${trade.symbol} (${trade.status})`);
-	});
-
-	// Simulate initial app load
-	setTimeout(() => {
-		isAppLoading.value = false;
-	}, 500);
+onUnmounted(() => {
+	socket.off("alert-triggered", handleAlertTriggered);
+	socket.off("alert-expired", handleAlertExpired);
+	socket.off("trade-synced", handleTradeSynced);
 });
 </script>
 
 <template>
-	<div class="min-h-screen bg-background text-text-main flex flex-col">
-		<!-- ===== GLOBAL LOADING OVERLAY ===== -->
-		<div v-if="isAppLoading" class="fixed inset-0 flex items-center justify-center bg-background z-50">
-			<Loading message="Loading application..." />
+	<router-view v-if="isAuthPage" />
+	<div v-else class="app-shell">
+		<div v-if="sidebarOpen" class="sidebar-scrim" @click="sidebarOpen = false"></div>
+		<NavigationSidebar :is-mobile-open="sidebarOpen" @close="sidebarOpen = false" @logout="handleLogout" />
+		<div class="app-workspace">
+			<header class="topbar">
+				<div class="topbar-title">
+					<button class="icon-button mobile-menu" aria-label="Open menu" @click="sidebarOpen = true"><Menu :size="19" /></button>
+					<div><p class="eyebrow">Overview</p><h1>{{ pageTitle }}</h1></div>
+				</div>
+				<div class="topbar-actions">
+					<button class="toolbar-button hide-tablet"><CalendarDays :size="15" /><span>Sep 01 — Sep 13</span><ChevronDown :size="14" /></button>
+					<button class="toolbar-button account-button"><span class="status-dot"></span><span>FTMO • 100K</span><ChevronDown :size="14" /></button>
+					<button class="icon-button" aria-label="Search"><Search :size="18" /></button>
+					<button class="icon-button notification-button" aria-label="Notifications"><Bell :size="18" /><span></span></button>
+					<button class="topbar-avatar" aria-label="Open profile">EH</button>
+				</div>
+			</header>
+			<main class="page-content"><router-view /></main>
 		</div>
-
-		<!-- ===== TOP HEADER ===== -->
-		<header
-			v-if="!isAuthPage"
-			class="h-16 border-b border-border flex items-center justify-between px-6 shrink-0"
-			data-testid="app-header"
-		>
-			<div class="flex items-center gap-3">
-				<!-- Hamburger Menu Button (Mobile) -->
-				<button
-					@click="toggleMobileSidebar"
-					class="lg:hidden p-2 text-text-muted hover:text-text-main"
-					data-testid="hamburger-menu-btn"
-				>
-					<Menu :size="24" :stroke-width="2" />
-				</button>
-
-				<img src="/logo.jpg" alt="Logo" class="w-8 h-8 object-cover rounded" />
-				<div class="flex flex-col leading-tight">
-					<span class="font-heading font-black tracking-tight text-base">
-						Plan2Profit
-					</span>
-					<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
-						Trading Journal · v0.1
-					</span>
-				</div>
-			</div>
-
-			<div class="flex items-center gap-4">
-				<div class="hidden md:flex items-center gap-2 font-mono text-xs text-text-muted">
-					<span class="w-2 h-2 bg-success animate-pulse"></span>
-					<span class="tracking-widest uppercase">Session Active</span>
-				</div>
-				<button
-					@click="handleLogout"
-					class="flex items-center gap-2 px-3 py-1.5 border border-border bg-surface/40 hover:bg-surface-hover/60 transition-colors font-mono text-xs tracking-wider uppercase text-text-muted hover:text-text-main"
-				>
-					<LogOut :size="14" :stroke-width="2" />
-					Logout
-				</button>
-			</div>
-		</header>
-
-		<!-- ===== MAIN GRID ===== -->
-		<main class="flex-1 min-h-0 relative">
-			<!-- Auth Pages Layout -->
-			<div v-if="isAuthPage" class="min-h-full">
-				<router-view />
-			</div>
-
-			<!-- App Pages Layout -->
-			<div v-else class="grid grid-cols-1 lg:grid-cols-11 min-h-0">
-				<!-- Mobile Overlay -->
-				<div
-					v-if="isMobileSidebarOpen"
-					@click="closeMobileSidebar"
-					class="fixed inset-0 bg-black/50 z-40 lg:hidden"
-					data-testid="mobile-overlay"
-				></div>
-
-				<!-- Navigation Sidebar -->
-				<NavigationSidebar
-					:is-mobile-open="isMobileSidebarOpen"
-					@close="closeMobileSidebar"
-				/>
-
-				<!-- Router View -->
-				<section class="lg:col-span-10 min-h-0">
-					<router-view />
-				</section>
-			</div>
-		</main>
-
-		<!-- ===== FOOTER ===== -->
-		<footer
-			v-if="!isAuthPage"
-			class="border-t border-border px-6 h-10 flex items-center justify-between text-[11px] font-mono text-text-muted tracking-widest uppercase"
-			data-testid="app-footer"
-		>
-			<span class="hidden sm:inline">Made for traders who keep score</span>
-		</footer>
 	</div>
 </template>
