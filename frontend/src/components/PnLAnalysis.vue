@@ -361,7 +361,7 @@ const maxCalendarPnl = computed(() => {
 	<div class="h-full flex flex-col" data-testid="pnl-analysis">
 		<!-- Header -->
 		<div
-			class="lg:ml-34 px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
+			class="px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
 		>
 			<div class="flex items-center gap-3">
 				<span class="font-heading font-black text-sm tracking-widest uppercase">
@@ -406,7 +406,7 @@ const maxCalendarPnl = computed(() => {
 		</div>
 
 		<!-- Content -->
-		<div v-else class="lg:ml-34 flex-1 overflow-auto p-6">
+		<div v-else class="flex-1 overflow-auto p-6">
 			<!-- Time-based Stats -->
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
 				<!-- Win Rate -->

@@ -185,7 +185,7 @@ watch(
 	<div class="h-full flex flex-col min-h-0">
 		<!-- Header with Add Trade Button -->
 		<div
-			class="lg:ml-34 px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
+			class="px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur"
 		>
 			<div class="flex items-center gap-3">
 				<span class="font-heading font-black text-sm tracking-widest uppercase">
@@ -232,7 +232,7 @@ watch(
 
 		<!-- Tag Filter Bar -->
 		<div
-			class="lg:ml-34 px-6 py-3 border-b border-border bg-surface/40 flex items-center gap-2 overflow-x-auto"
+			class="px-6 py-3 border-b border-border bg-surface/40 flex items-center gap-2 overflow-x-auto"
 		>
 			<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase shrink-0">
 				Filter by tag:

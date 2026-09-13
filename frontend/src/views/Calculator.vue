@@ -299,7 +299,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 	<div class="h-full flex flex-col min-h-0 bg-background" data-testid="calculator-page">
 		<!-- Header -->
 		<div
-			class="lg:ml-34 px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur shrink-0"
+			class="px-6 h-12 flex items-center justify-between border-b border-border bg-background/80 backdrop-blur shrink-0"
 		>
 			<div class="flex items-center gap-3">
 				<span class="font-heading font-black text-sm tracking-widest uppercase">
@@ -313,7 +313,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 
 		<!-- Main Workspace Grid -->
 		<div
-			class="flex-1 lg:ml-34 overflow-auto p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-0"
+			class="flex-1 overflow-auto p-6 grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-0"
 		>
 			<!-- Left Side: Inputs Form (xl:col-span-7) -->
 			<form

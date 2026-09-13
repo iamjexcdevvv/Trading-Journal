@@ -1,116 +1,51 @@
 <script setup>
-import { computed } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { BookOpen, BarChart3, Calculator, Settings, ListChecks, ShieldCheck, X } from "lucide-vue-next";
+import { useRoute, useRouter } from "vue-router";
+import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronDown, CircleHelp, LayoutDashboard, Library, LogOut, NotebookPen, ReceiptText, Settings, ShieldCheck, X } from "lucide-vue-next";
+import { useTrades } from "../composables/useTrades.js";
 
-const props = defineProps({
-	isMobileOpen: { type: Boolean, default: false },
-});
-
-const emit = defineEmits(["close"]);
-
-const router = useRouter();
+defineProps({ isMobileOpen: { type: Boolean, default: false } });
+const emit = defineEmits(["close", "logout"]);
 const route = useRoute();
-
-const navItems = computed(() => [
-	{
-		path: "/trade-logging",
-		label: "Trade Logging",
-		icon: BookOpen,
-		testid: "nav-trade-logging",
-	},
-	{
-		path: "/pnl-analysis",
-		label: "Performance",
-		icon: BarChart3,
-		testid: "nav-pnl-analysis",
-	},
-	{
-		path: "/calculator",
-		label: "Calculator",
-		icon: Calculator,
-		testid: "nav-calculator",
-	},
-	{
-		path: "/setups",
-		label: "Setups",
-		icon: ListChecks,
-		testid: "nav-setups",
-	},
-	{
-		path: "/trading-rules",
-		label: "Trading Rules",
-		icon: ShieldCheck,
-		testid: "nav-trading-rules",
-	},
-	{
-		path: "/settings",
-		label: "Settings",
-		icon: Settings,
-		testid: "nav-settings",
-	},
-]);
-
-const isActive = (path) => route.path === path;
-
-const navigate = (path) => {
-	router.push(path);
-	emit("close");
-};
-
-const closeSidebar = () => {
-	emit("close");
-};
+const router = useRouter();
+const { trades } = useTrades();
+const navItems = [
+	{ path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+	{ path: "/trade-logging", label: "Trades", icon: ReceiptText },
+	{ path: "/journal", label: "Journal", icon: NotebookPen },
+	{ path: "/calendar", label: "Calendar", icon: CalendarDays },
+	{ path: "/pnl-analysis", label: "Analytics", icon: BarChart3 },
+	{ path: "/calculator", label: "Calculator", icon: Calculator },
+	{ path: "/setups", label: "Playbook", icon: Library },
+	{ path: "/trading-rules", label: "Trading Rules", icon: ShieldCheck },
+	{ path: "/reports", label: "Reports", icon: BookOpen },
+];
+function navigate(path) { router.push(path); emit("close"); }
 </script>
 
 <template>
-	<aside
-		:class="[
-			'fixed inset-y-0 left-0 z-50 lg:relative lg:inset-auto lg:z-auto lg:h-full transition-transform duration-300 ease-in-out',
-			'w-64 border-r border-border bg-surface/40 flex flex-col overflow-hidden',
-			isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-		]"
-		data-testid="navigation-sidebar"
-	>
-		<!-- Mobile Close Button -->
-		<button
-			@click="closeSidebar"
-			class="lg:hidden absolute top-4 right-4 p-2 text-text-muted hover:text-text-main"
-			data-testid="mobile-close-btn"
-		>
-			<X :size="20" :stroke-width="2" />
-		</button>
-
-		<!-- Nav Header -->
-		<div class="h-12 flex items-center border-b border-border bg-background/80 backdrop-blur">
-			<span class="px-4 **:font-heading font-black text-sm tracking-wider uppercase">
-				Navigation
-			</span>
+	<aside :class="['sidebar', { 'sidebar-open': isMobileOpen }]">
+		<div class="brand-row">
+			<div class="brand-mark">P</div>
+			<div class="brand-copy"><strong>Plan2Profit</strong><span>Trading Journal</span></div>
+			<button class="sidebar-close" aria-label="Close menu" @click="emit('close')"><X :size="19" /></button>
 		</div>
-
-		<!-- Nav Items -->
-		<nav class="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
-			<button
-				v-for="item in navItems"
-				:key="item.path"
-				@click="navigate(item.path)"
-				:class="[
-					'w-full flex items-center gap-3 px-4 py-3 font-mono text-sm tracking-wider uppercase transition-colors duration-100',
-					isActive(item.path)
-						? 'bg-primary/15 text-primary border border-primary/30'
-						: 'text-text-muted hover:bg-surface-hover hover:text-text-main border border-transparent',
-				]"
-				:data-testid="item.testid"
-			>
-				<component :is="item.icon" :size="16" :stroke-width="2" />
-				<span>{{ item.label }}</span>
+		<div class="workspace-switcher">
+			<div class="workspace-icon">ET</div>
+			<div><strong>Eric's workspace</strong><span>Pro plan</span></div>
+			<ChevronDown :size="15" />
+		</div>
+		<nav class="sidebar-nav">
+			<p class="nav-label">Workspace</p>
+			<button v-for="item in navItems" :key="item.path" :class="['nav-item', { active: route.path === item.path }]" @click="navigate(item.path)">
+				<component :is="item.icon" :size="18" :stroke-width="1.8" /><span>{{ item.label }}</span><span v-if="item.label === 'Trades'" class="nav-count">{{ trades.length }}</span>
 			</button>
 		</nav>
-
-		<!-- Footer -->
-		<div class="px-6 py-4 border-t border-border">
-			<div class="font-mono text-[10px] text-text-muted/60 tracking-widest uppercase">
-				Dashboard v1.0
+		<div class="sidebar-bottom">
+			<button class="nav-item" @click="navigate('/settings')"><Settings :size="18" /><span>Settings</span></button>
+			<button class="nav-item"><CircleHelp :size="18" /><span>Help & support</span></button>
+			<div class="profile-card">
+				<div class="profile-avatar">EH</div><div class="profile-copy"><strong>Eric Huang</strong><span>eric@plan2profit.co</span></div>
+				<button aria-label="Log out" @click="emit('logout')"><LogOut :size="17" /></button>
 			</div>
 		</div>
 	</aside>

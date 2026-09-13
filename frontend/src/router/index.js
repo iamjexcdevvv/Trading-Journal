@@ -8,13 +8,23 @@ import TradingRules from "../views/TradingRules.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import OAuthCallback from "../views/OAuthCallback.vue";
+import Dashboard from "../views/Dashboard.vue";
 import { useAuth } from "../composables/useAuth.js";
 
 const routes = [
 	{
 		path: "/",
-		redirect: "/trade-logging",
+		redirect: "/dashboard",
 	},
+	{
+		path: "/dashboard",
+		name: "Dashboard",
+		component: Dashboard,
+		meta: { requiresAuth: true, title: "Dashboard" },
+	},
+	{ path: "/journal", redirect: "/trade-logging" },
+	{ path: "/calendar", redirect: "/dashboard" },
+	{ path: "/reports", redirect: "/pnl-analysis" },
 	{
 		path: "/login",
 		name: "Login",
@@ -37,37 +47,37 @@ const routes = [
 		path: "/trade-logging",
 		name: "TradeLogging",
 		component: TradeLogging,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Trades" },
 	},
 	{
 		path: "/pnl-analysis",
 		name: "PnLAnalysis",
 		component: PnLAnalysis,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Analytics" },
 	},
 	{
 		path: "/calculator",
 		name: "Calculator",
 		component: Calculator,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Calculator" },
 	},
 	{
 		path: "/settings",
 		name: "Settings",
 		component: Settings,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Settings" },
 	},
 	{
 		path: "/setups",
 		name: "Setups",
 		component: Setups,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Playbook" },
 	},
 	{
 		path: "/trading-rules",
 		name: "TradingRules",
 		component: TradingRules,
-		meta: { requiresAuth: true },
+		meta: { requiresAuth: true, title: "Trading Rules" },
 	},
 ];
 
@@ -104,7 +114,7 @@ router.beforeEach(async (to, from, next) => {
 
 	// Guest routes - redirect to app if already logged in
 	if (to.meta.requiresGuest && isLoggedIn.value) {
-		next("/trade-logging");
+		next("/dashboard");
 		return;
 	}
 
