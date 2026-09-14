@@ -102,7 +102,7 @@ const deleteTradeMutation = useMutation({
 		if (tradeToDelete) {
 			removeTrade(tradeToDelete.id);
 		}
-		queryClient.invalidateQueries(["trades"]);
+		queryClient.invalidateQueries({ queryKey: ["trades"] });
 	},
 });
 
@@ -122,7 +122,7 @@ const addTradeMutation = useMutation({
 		lastAddedId.value = trades.value[0]?.id;
 		isModalOpen.value = false;
 		router.replace({ query: {} });
-		queryClient.invalidateQueries(["trades"]);
+		queryClient.invalidateQueries({ queryKey: ["trades"] });
 	},
 });
 
@@ -140,7 +140,7 @@ const updateTradeMutation = useMutation({
 	onSuccess: () => {
 		isEditModalOpen.value = false;
 		editingTrade.value = null;
-		queryClient.invalidateQueries(["trades"]);
+		queryClient.invalidateQueries({ queryKey: ["trades"] });
 	},
 });
 

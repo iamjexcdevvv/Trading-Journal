@@ -18,6 +18,7 @@ const tradeSchema = new mongoose.Schema({
     status: { type: String, enum: ['open', 'closed'], default: 'closed' },
     entryPrice: Number,
     exitPrice: Number,
+    rMultiple: Number,
     qty: Number,
     leverage: Number,
     fee: Number

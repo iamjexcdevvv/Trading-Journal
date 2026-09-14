@@ -21,6 +21,9 @@ const tradeSchema = Joi.object({
     })).optional(),
     notes: Joi.string().allow('').optional(),
     pnl: Joi.number().allow(null).optional(),
+    entryPrice: Joi.number().positive().allow(null).optional(),
+    exitPrice: Joi.number().positive().allow(null).optional(),
+    rMultiple: Joi.number().min(0).allow(null).optional(),
     screenshot: Joi.string().uri().allow('').optional(),
     tags: Joi.array().items(Joi.string()).optional()
 })

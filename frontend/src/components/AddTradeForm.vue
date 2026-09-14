@@ -21,6 +21,9 @@ const strategy = ref(route.query.strategy || "");
 const notes = ref(route.query.notes || "");
 const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
+const entryPrice = ref(route.query.entryPrice || "");
+const exitPrice = ref(route.query.exitPrice || "");
+const rMultiple = ref(route.query.rMultiple || "");
 const selectedTags = ref([]);
 const tradeDate = ref(new Date().toISOString().split('T')[0]);
 const checklist = ref([]);
@@ -118,6 +121,9 @@ const onSubmit = () => {
 	if (!isValid.value) return;
 
 	const parsedPnl = pnl.value === "" || pnl.value === "-" ? null : Number(pnl.value);
+	const parsedEntryPrice = entryPrice.value === "" ? null : Number(entryPrice.value);
+	const parsedExitPrice = exitPrice.value === "" ? null : Number(exitPrice.value);
+	const parsedRMultiple = rMultiple.value === "" ? null : Number(rMultiple.value);
 	const cleanedSymbol = symbol.value.trim().toUpperCase();
 	const cleanedNotes = notes.value.trim();
 
@@ -128,6 +134,9 @@ const onSubmit = () => {
 		strategy: strategy.value,
 		notes: cleanedNotes,
 		pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
+		entryPrice: Number.isFinite(parsedEntryPrice) ? parsedEntryPrice : null,
+		exitPrice: Number.isFinite(parsedExitPrice) ? parsedExitPrice : null,
+		rMultiple: Number.isFinite(parsedRMultiple) ? parsedRMultiple : null,
 		screenshot: screenshot.value,
 		tags: [...selectedTags.value],
 		setup: matchedSetup.value?.name || "",
@@ -145,6 +154,9 @@ const resetInputs = () => {
 	notes.value = "";
 	justSubmitted.value = true;
 	pnl.value = "";
+	entryPrice.value = "";
+	exitPrice.value = "";
+	rMultiple.value = "";
 	selectedTags.value = [];
 	tradeDate.value = new Date().toISOString().split('T')[0];
 	checklist.value = [];
@@ -384,6 +396,22 @@ const toggleTag = (tag) => {
 						</span>
 					</span>
 				</label>
+			</div>
+		</div>
+
+		<!-- Trade pricing -->
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+			<div class="flex flex-col gap-1.5">
+				<label for="entry-price" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Entry</label>
+				<input id="entry-price" v-model="entryPrice" type="number" min="0" step="any" inputmode="decimal" placeholder="0.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="trade-entry-price-input" />
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<label for="exit-price" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Exit</label>
+				<input id="exit-price" v-model="exitPrice" type="number" min="0" step="any" inputmode="decimal" placeholder="0.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="trade-exit-price-input" />
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<label for="r-multiple" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">RRR Used</label>
+				<input id="r-multiple" v-model="rMultiple" type="number" min="0" step="0.01" inputmode="decimal" placeholder="2.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="trade-r-multiple-input" />
 			</div>
 		</div>
 

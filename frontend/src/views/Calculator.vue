@@ -287,6 +287,8 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 			symbol: symbol.value.trim().toUpperCase(),
 			direction: direction.value,
 			strategy: strategy.value,
+			entryPrice: entryPrice.value,
+			rMultiple: computedRrRatio.value,
 			notes: notesStr,
 			pnl: "",
 			autoOpen: "true",

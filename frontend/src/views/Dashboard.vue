@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Ellipsis, Plus, SlidersHorizontal, TrendingUp } from "lucide-vue-next";
@@ -14,8 +14,22 @@ const { trades: storedTrades, setTrades } = useTrades();
 const { startDate, endDate, activePreset, setPreset, includesDate } = useDashboardRange();
 const selectedDay = ref(new Date().getDate());
 const calendarCursor = ref(endDate.value ? new Date(`${endDate.value}T00:00:00`) : new Date());
+const currentTime = ref(new Date());
+let clockTimer;
 const ranges = ["1W", "1M", "3M", "YTD", "ALL"];
 const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const greeting = computed(() => {
+	const hour = currentTime.value.getHours();
+	if (hour < 12) return "Good morning";
+	if (hour < 18) return "Good afternoon";
+	return "Good evening";
+});
+
+onMounted(() => {
+	clockTimer = window.setInterval(() => { currentTime.value = new Date(); }, 60_000);
+});
+
+onUnmounted(() => window.clearInterval(clockTimer));
 
 const { data: fetchedTrades, isLoading, isError } = useQuery({
 	queryKey: ["trades"],
@@ -49,13 +63,15 @@ const stats = computed(() => {
 	const net = closedTrades.value.reduce((sum, trade) => sum + Number(trade.pnl), 0);
 	const grossWins = wins.reduce((sum, trade) => sum + Number(trade.pnl), 0);
 	const grossLosses = Math.abs(losses.reduce((sum, trade) => sum + Number(trade.pnl), 0));
-	return { wins, losses, net, winRate: closedTrades.value.length ? wins.length / closedTrades.value.length * 100 : 0, profitFactor: grossLosses ? grossWins / grossLosses : 0 };
+	const tradesWithR = closedTrades.value.filter((trade) => trade.rMultiple !== null && trade.rMultiple !== undefined && Number.isFinite(Number(trade.rMultiple)));
+	const averageR = tradesWithR.length ? tradesWithR.reduce((sum, trade) => sum + Number(trade.rMultiple), 0) / tradesWithR.length : null;
+	return { wins, losses, net, averageR, winRate: closedTrades.value.length ? wins.length / closedTrades.value.length * 100 : 0, profitFactor: grossLosses ? grossWins / grossLosses : 0 };
 });
 const metrics = computed(() => [
 	{ label: "Net P&L", value: money(stats.value.net), change: `${stats.value.net >= 0 ? "+" : ""}${stats.value.net ? "Live" : "0%"}`, trend: stats.value.net >= 0 ? "up" : "down", tone: stats.value.net >= 0 ? "profit" : "", detail: "all recorded trades" },
 	{ label: "Win rate", value: `${stats.value.winRate.toFixed(1)}%`, change: `${stats.value.wins.length} wins`, trend: stats.value.winRate >= 50 ? "up" : "down", detail: `${stats.value.losses.length} losses` },
 	{ label: "Profit factor", value: stats.value.profitFactor.toFixed(2), change: stats.value.profitFactor >= 1 ? "Profitable" : "Below 1", trend: stats.value.profitFactor >= 1 ? "up" : "down", detail: "gross profit / loss" },
-	{ label: "Average R:R", value: "—", change: "No risk field", trend: "neutral", detail: "available on new trades" },
+	{ label: "Average R:R", value: stats.value.averageR === null ? "—" : `${stats.value.averageR.toFixed(2)}R`, change: stats.value.averageR === null ? "No data" : "Recorded RRR", trend: "neutral", detail: "in selected range" },
 	{ label: "Total trades", value: String(filteredTrades.value.length), change: `${closedTrades.value.length} closed`, trend: "neutral", detail: "in selected range" },
 	{ label: "Current streak", value: `${currentStreak.value.count} ${currentStreak.value.result}`, change: "Current", trend: currentStreak.value.result === "wins" ? "up" : currentStreak.value.result === "losses" ? "down" : "neutral", detail: "latest results" },
 ]);
@@ -101,10 +117,9 @@ const trades = computed(() => sortedTrades.value.slice(0, 5).map((trade) => ({
 	...trade,
 	market: trade.exchange || trade.strategy || "Manual trade",
 	direction: String(trade.direction || "—").toUpperCase(),
-	entry: Number.isFinite(Number(trade.entryPrice)) ? Number(trade.entryPrice).toLocaleString() : "—",
-	exit: Number.isFinite(Number(trade.exitPrice)) ? Number(trade.exitPrice).toLocaleString() : "—",
-	size: Number.isFinite(Number(trade.qty)) ? String(trade.qty) : "—",
-	r: trade.rMultiple || "—",
+	entry: trade.entryPrice !== null && trade.entryPrice !== undefined && Number.isFinite(Number(trade.entryPrice)) ? Number(trade.entryPrice).toLocaleString() : "—",
+	exit: trade.exitPrice !== null && trade.exitPrice !== undefined && Number.isFinite(Number(trade.exitPrice)) ? Number(trade.exitPrice).toLocaleString() : "—",
+	r: trade.rMultiple !== null && trade.rMultiple !== undefined && Number.isFinite(Number(trade.rMultiple)) ? `${Number(trade.rMultiple).toFixed(2)}R` : "—",
 	setup: trade.setup || trade.strategy || "Unassigned",
 	date: new Date(trade.date || trade.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
 	displayPnl: Number.isFinite(Number(trade.pnl)) ? money(Number(trade.pnl)) : "Open",
@@ -114,7 +129,7 @@ const trades = computed(() => sortedTrades.value.slice(0, 5).map((trade) => ({
 <template>
 	<div class="dashboard-page">
 		<section class="dashboard-intro">
-			<div><h2>Good evening, {{ user.displayName }}.</h2><p>Here’s how your trading performance is shaping up.</p></div>
+			<div><h2>{{ greeting }}, {{ user.displayName }}.</h2><p>Here’s how your trading performance is shaping up.</p></div>
 			<button class="primary-action" @click="router.push('/trade-logging?autoOpen=true')"><Plus :size="17" /> Log trade</button>
 		</section>
 		<div v-if="isError" class="data-message error">Could not load saved trades. Check backend connection, then retry.</div>
@@ -148,9 +163,9 @@ const trades = computed(() => sortedTrades.value.slice(0, 5).map((trade) => ({
 		</section>
 		<section class="panel trades-panel">
 			<header class="panel-header trades-header"><div><h3>Recent trades</h3><p>Your latest saved trading activity</p></div><div class="trade-actions"><button class="secondary-action"><SlidersHorizontal :size="15" /> Filter</button><button class="text-action">View all trades <ArrowUpRight :size="15" /></button></div></header>
-			<div class="table-scroll"><table><thead><tr><th>Symbol</th><th>Direction</th><th>Entry</th><th>Exit</th><th>Position size</th><th>P&L</th><th>R-Multiple</th><th>Setup</th><th>Date</th><th></th></tr></thead><tbody>
-				<tr v-for="trade in trades" :key="trade._id || trade.symbol + trade.date" @click="router.push('/trade-logging')"><td><div class="symbol-cell"><span>{{ trade.symbol }}</span><small>{{ trade.market }}</small></div></td><td><span :class="['direction-badge', trade.direction.toLowerCase()]">{{ trade.direction }}</span></td><td class="number-cell">{{ trade.entry }}</td><td class="number-cell">{{ trade.exit }}</td><td>{{ trade.size }}</td><td :class="['number-cell pnl-cell', trade.pnl > 0 ? 'profit-text' : trade.pnl < 0 ? 'loss-text' : '']">{{ trade.displayPnl }}</td><td :class="['number-cell', trade.pnl > 0 ? 'profit-text' : trade.pnl < 0 ? 'loss-text' : '']">{{ trade.r }}</td><td><span class="setup-pill">{{ trade.setup }}</span></td><td class="date-cell">{{ trade.date }}</td><td><button class="row-menu"><Ellipsis :size="17" /></button></td></tr>
-				<tr v-if="!trades.length && !isLoading"><td colspan="10" class="empty-trades">No saved trades yet. Log your first trade to begin.</td></tr>
+			<div class="table-scroll"><table><thead><tr><th>Symbol</th><th>Direction</th><th>Entry</th><th>Exit</th><th>P&L</th><th>R-Multiple</th><th>Setup</th><th>Date</th><th></th></tr></thead><tbody>
+				<tr v-for="trade in trades" :key="trade._id || trade.symbol + trade.date" @click="router.push('/trade-logging')"><td><div class="symbol-cell"><span>{{ trade.symbol }}</span><small>{{ trade.market }}</small></div></td><td><span :class="['direction-badge', trade.direction.toLowerCase()]">{{ trade.direction }}</span></td><td class="number-cell">{{ trade.entry }}</td><td class="number-cell">{{ trade.exit }}</td><td :class="['number-cell pnl-cell', trade.pnl > 0 ? 'profit-text' : trade.pnl < 0 ? 'loss-text' : '']">{{ trade.displayPnl }}</td><td :class="['number-cell', trade.pnl > 0 ? 'profit-text' : trade.pnl < 0 ? 'loss-text' : '']">{{ trade.r }}</td><td><span class="setup-pill">{{ trade.setup }}</span></td><td class="date-cell">{{ trade.date }}</td><td><button class="row-menu"><Ellipsis :size="17" /></button></td></tr>
+				<tr v-if="!trades.length && !isLoading"><td colspan="9" class="empty-trades">No saved trades yet. Log your first trade to begin.</td></tr>
 			</tbody></table></div>
 		</section>
 	</div>

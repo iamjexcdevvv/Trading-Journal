@@ -21,6 +21,9 @@ const direction = ref("Long");
 const strategy = ref("");
 const notes = ref("");
 const pnl = ref("");
+const entryPrice = ref("");
+const exitPrice = ref("");
+const rMultiple = ref("");
 const selectedTags = ref([]);
 const tradeDate = ref("");
 const setup = ref("");
@@ -102,6 +105,9 @@ watch(
 			strategy.value = newTrade.strategy || "";
 			notes.value = newTrade.notes || "";
 			pnl.value = newTrade.pnl !== null && newTrade.pnl !== undefined ? newTrade.pnl.toString() : "";
+			entryPrice.value = newTrade.entryPrice !== null && newTrade.entryPrice !== undefined ? newTrade.entryPrice.toString() : "";
+			exitPrice.value = newTrade.exitPrice !== null && newTrade.exitPrice !== undefined ? newTrade.exitPrice.toString() : "";
+			rMultiple.value = newTrade.rMultiple !== null && newTrade.rMultiple !== undefined ? newTrade.rMultiple.toString() : "";
 			selectedTags.value = newTrade.tags ? [...newTrade.tags] : [];
 			setup.value = newTrade.setup || "";
 			checklist.value = newTrade.checklist ? newTrade.checklist.map((item) => ({ ...item })) : [];
@@ -179,6 +185,9 @@ const onSubmit = () => {
 	if (!isValid.value || !props.trade) return;
 
 	const parsedPnl = pnl.value === "" || pnl.value === "-" ? null : Number(pnl.value);
+	const parsedEntryPrice = entryPrice.value === "" ? null : Number(entryPrice.value);
+	const parsedExitPrice = exitPrice.value === "" ? null : Number(exitPrice.value);
+	const parsedRMultiple = rMultiple.value === "" ? null : Number(rMultiple.value);
 	const cleanedSymbol = symbol.value.trim().toUpperCase();
 	const cleanedNotes = notes.value.trim();
 
@@ -192,6 +201,9 @@ const onSubmit = () => {
 			strategy: strategy.value,
 			notes: cleanedNotes,
 			pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
+			entryPrice: Number.isFinite(parsedEntryPrice) ? parsedEntryPrice : null,
+			exitPrice: Number.isFinite(parsedExitPrice) ? parsedExitPrice : null,
+			rMultiple: Number.isFinite(parsedRMultiple) ? parsedRMultiple : null,
 			screenshot: screenshot.value,
 			tags: [...selectedTags.value],
 			setup: setup.value,
@@ -441,6 +453,22 @@ const onSubmit = () => {
 											{{ item.label }}
 										</span>
 									</label>
+								</div>
+							</div>
+
+							<!-- Trade pricing -->
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+								<div class="flex flex-col gap-1.5">
+									<label for="edit-entry-price" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Entry</label>
+									<input id="edit-entry-price" v-model="entryPrice" type="number" min="0" step="any" inputmode="decimal" placeholder="0.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="edit-trade-entry-price-input" />
+								</div>
+								<div class="flex flex-col gap-1.5">
+									<label for="edit-exit-price" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Exit</label>
+									<input id="edit-exit-price" v-model="exitPrice" type="number" min="0" step="any" inputmode="decimal" placeholder="0.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="edit-trade-exit-price-input" />
+								</div>
+								<div class="flex flex-col gap-1.5">
+									<label for="edit-r-multiple" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">RRR Used</label>
+									<input id="edit-r-multiple" v-model="rMultiple" type="number" min="0" step="0.01" inputmode="decimal" placeholder="2.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="edit-trade-r-multiple-input" />
 								</div>
 							</div>
 
