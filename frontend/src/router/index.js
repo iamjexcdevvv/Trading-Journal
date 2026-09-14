@@ -9,6 +9,7 @@ import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import OAuthCallback from "../views/OAuthCallback.vue";
 import Dashboard from "../views/Dashboard.vue";
+import AdminApprovals from "../views/AdminApprovals.vue";
 import { useAuth } from "../composables/useAuth.js";
 
 const routes = [
@@ -21,6 +22,12 @@ const routes = [
 		name: "Dashboard",
 		component: Dashboard,
 		meta: { requiresAuth: true, title: "Dashboard" },
+	},
+	{
+		path: "/admin/approvals",
+		name: "AdminApprovals",
+		component: AdminApprovals,
+		meta: { requiresAuth: true, requiresAdmin: true, title: "Approvals" },
 	},
 	{
 		path: "/login",
@@ -107,6 +114,14 @@ router.beforeEach(async (to, from, next) => {
 		}
 		next("/login");
 		return;
+	}
+
+	if (to.meta.requiresAdmin) {
+		const { user } = useAuth();
+		if (user.value.role !== "admin") {
+			next("/dashboard");
+			return;
+		}
 	}
 
 	// Guest routes - redirect to app if already logged in

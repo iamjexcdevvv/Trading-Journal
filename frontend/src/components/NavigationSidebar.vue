@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
-import { BarChart3, Calculator, LayoutDashboard, Library, LogOut, ReceiptText, Settings, ShieldCheck, X } from "lucide-vue-next";
+import { computed } from "vue";
+import { BarChart3, Calculator, LayoutDashboard, Library, LogOut, ReceiptText, Settings, ShieldCheck, UserCheck, X } from "lucide-vue-next";
 import { useTrades } from "../composables/useTrades.js";
 import { useAuth } from "../composables/useAuth.js";
 
@@ -10,14 +11,15 @@ const route = useRoute();
 const router = useRouter();
 const { trades } = useTrades();
 const { user } = useAuth();
-const navItems = [
+const navItems = computed(() => [
 	{ path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ path: "/trade-logging", label: "Trades", icon: ReceiptText },
 	{ path: "/pnl-analysis", label: "Analytics", icon: BarChart3 },
 	{ path: "/calculator", label: "Calculator", icon: Calculator },
 	{ path: "/setups", label: "Playbook", icon: Library },
 	{ path: "/trading-rules", label: "Trading Rules", icon: ShieldCheck },
-];
+	...(user.value.role === "admin" ? [{ path: "/admin/approvals", label: "Approvals", icon: UserCheck }] : []),
+]);
 function navigate(path) { router.push(path); emit("close"); }
 </script>
 

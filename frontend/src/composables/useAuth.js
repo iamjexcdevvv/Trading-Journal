@@ -39,6 +39,7 @@ export function useAuth() {
 			id: payload?._id || null,
 			displayName,
 			email: payload?.email || "",
+			role: payload?.role || "user",
 			initials,
 		};
 	});

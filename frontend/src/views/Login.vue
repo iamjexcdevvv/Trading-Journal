@@ -1,17 +1,18 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuth } from "../composables/useAuth.js";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
 
 const router = useRouter();
+const route = useRoute();
 const { setToken } = useAuth();
 
 const username = ref("");
 const password = ref("");
 const isLoading = ref(false);
-const error = ref("");
+const error = ref(route.query.approval === "pending" ? "Account awaiting administrator approval." : "");
 
 const handleLogin = async () => {
 	isLoading.value = true;
@@ -29,7 +30,8 @@ const handleLogin = async () => {
 		});
 
 		if (!response.ok) {
-			error.value = "Invalid credentials. Please try again.";
+			const data = await response.json();
+			error.value = data.error || "Invalid credentials. Please try again.";
 			return;
 		}
 

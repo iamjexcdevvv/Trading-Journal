@@ -11,6 +11,7 @@ const tradingRuleRoutes = require('../routes/tradingRules');
 const alertRoutes = require('../routes/alerts');
 const connectionRoutes = require('../routes/connections');
 const marketRoutes = require('../routes/market');
+const adminApprovalRoutes = require('../routes/adminApprovals');
 
 module.exports = function (app, logger, globalRateLimiter) {
     app.use(cors({
@@ -31,6 +32,7 @@ module.exports = function (app, logger, globalRateLimiter) {
     app.use('/api/alerts', alertRoutes);
     app.use('/api/connections', connectionRoutes);
     app.use('/api/market', marketRoutes);
+    app.use('/api/admin/approvals', adminApprovalRoutes);
 
     app.use((error, req, res, next) => {
         logger.error(error.message, {

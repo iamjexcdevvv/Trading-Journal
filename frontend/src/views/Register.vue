@@ -1,18 +1,23 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useAuth } from "../composables/useAuth.js";
 
 const apiURL = import.meta.env.VITE_API_BASE_URL;
 
 const router = useRouter();
-const { setToken } = useAuth();
-
+const email = ref("");
 const username = ref("");
 const password = ref("");
 const confirmPassword = ref("");
 const isLoading = ref(false);
 const error = ref("");
+const submitted = ref(false);
+
+const emailError = computed(() => {
+	if (!email.value) return "";
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return "Enter a valid email address";
+	return "";
+});
 
 const usernameError = computed(() => {
 	if (!username.value) return "";
@@ -34,6 +39,7 @@ const confirmPasswordError = computed(() => {
 
 const isValid = computed(() => {
 	return (
+		!emailError.value && email.value.length > 0 &&
 		username.value.length >= 3 &&
 		password.value.length >= 6 &&
 		confirmPassword.value === password.value
@@ -66,6 +72,7 @@ const handleRegister = async () => {
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
 			body: JSON.stringify({
+				email: email.value,
 				username: username.value,
 				password: password.value,
 			}),
@@ -73,16 +80,11 @@ const handleRegister = async () => {
 
 		if (!response.ok) {
 			const data = await response.json();
-			throw new Error(data.message || "Registration failed");
+			throw new Error(data.error || data.message || "Registration failed");
 		}
 
-		const data = await response.json();
-
-		// Store token and user data
-		setToken(data.accessToken);
-
-		// Registration successful, redirect to main app
-		router.push("/");
+		await response.json();
+		submitted.value = true;
 	} catch (err) {
 		error.value = err.message;
 	} finally {
@@ -118,13 +120,25 @@ const goToLogin = () => {
 			</div>
 
 			<!-- Form -->
-			<form @submit.prevent="handleRegister" class="space-y-4">
+			<div v-if="submitted" class="px-5 py-6 border border-success/30 bg-success/10 text-center rounded-lg">
+				<h2 class="font-heading font-bold text-lg text-success">Approval requested</h2>
+				<p class="mt-2 text-sm text-text-muted">Administrator must approve your account before you can sign in.</p>
+				<button class="mt-5 px-5 py-2 bg-primary text-primary-foreground font-bold" @click="goToLogin">Return to sign in</button>
+			</div>
+
+			<form v-else @submit.prevent="handleRegister" class="space-y-4">
 				<!-- Error Message -->
 				<div
 					v-if="error"
 					class="px-4 py-3 bg-danger/20 text-danger text-xs font-mono tracking-wider uppercase rounded border border-danger/30"
 				>
 					{{ error }}
+				</div>
+
+				<div class="flex flex-col gap-1.5">
+					<label for="email" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Email</label>
+					<input id="email" v-model.trim="email" type="email" placeholder="you@example.com" autocomplete="email" :class="['bg-transparent border px-4 py-3 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:ring-1', emailError ? 'border-danger focus:ring-danger' : 'border-border focus:border-primary focus:ring-primary']" />
+					<span v-if="emailError" class="text-[10px] text-danger font-mono tracking-wider uppercase">{{ emailError }}</span>
 				</div>
 
 				<!-- Username -->

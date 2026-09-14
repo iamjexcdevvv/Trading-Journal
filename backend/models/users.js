@@ -6,8 +6,12 @@ const userSchema = new mongoose.Schema({
     username: {type: String, required: false, minlength: 3},
     password: {type: String, required: false, minlength: 6},
     hashedPassword: {type: String, required: false},
-    refreshToken: {type: String}
-})
+    refreshToken: {type: String},
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    approvalStatus: { type: String, enum: ['pending', 'approved'] },
+    approvedAt: Date,
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true })
 
 const User = mongoose.model('User', userSchema);
 
@@ -29,4 +33,20 @@ async function getUserByGoogleId(googleId, email) {
     return await User.findOne({ $or: [{ googleId }, { email }] });
 }
 
-module.exports = { saveUser, getUser, getUserById, getUserByGoogleId };
+async function getUserByEmail(email) {
+    return await User.findOne({ email: email.toLowerCase() });
+}
+
+async function getPendingUsers() {
+    return await User.find({ approvalStatus: 'pending' }).select('_id username email createdAt approvalStatus').sort({ createdAt: 1 });
+}
+
+async function approveUserById(id, adminId) {
+    return await User.findOneAndUpdate(
+        { _id: id, approvalStatus: 'pending' },
+        { $set: { approvalStatus: 'approved', approvedAt: new Date(), approvedBy: adminId } },
+        { returnDocument: 'after' }
+    ).select('_id username email createdAt approvalStatus approvedAt');
+}
+
+module.exports = { saveUser, getUser, getUserById, getUserByGoogleId, getUserByEmail, getPendingUsers, approveUserById };
