@@ -2,12 +2,14 @@
 import { useRoute, useRouter } from "vue-router";
 import { BarChart3, Calculator, LayoutDashboard, Library, LogOut, ReceiptText, Settings, ShieldCheck, X } from "lucide-vue-next";
 import { useTrades } from "../composables/useTrades.js";
+import { useAuth } from "../composables/useAuth.js";
 
 defineProps({ isMobileOpen: { type: Boolean, default: false } });
 const emit = defineEmits(["close", "logout"]);
 const route = useRoute();
 const router = useRouter();
 const { trades } = useTrades();
+const { user } = useAuth();
 const navItems = [
 	{ path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ path: "/trade-logging", label: "Trades", icon: ReceiptText },
@@ -35,7 +37,7 @@ function navigate(path) { router.push(path); emit("close"); }
 		<div class="sidebar-bottom">
 			<button class="nav-item" @click="navigate('/settings')"><Settings :size="18" /><span>Settings</span></button>
 			<div class="profile-card">
-				<div class="profile-avatar">EH</div><div class="profile-copy"><strong>Eric Huang</strong><span>eric@plan2profit.co</span></div>
+				<div class="profile-avatar">{{ user.initials }}</div><div class="profile-copy"><strong>{{ user.displayName }}</strong><span>{{ user.email || "Signed in" }}</span></div>
 				<button aria-label="Log out" @click="emit('logout')"><LogOut :size="17" /></button>
 			</div>
 		</div>

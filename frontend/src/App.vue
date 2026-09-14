@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Bell, CalendarDays, ChevronDown, Menu, Search } from "lucide-vue-next";
+import { Menu } from "lucide-vue-next";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
+import DateRangeSelector from "./components/DateRangeSelector.vue";
 import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
 import { useSocket } from "./composables/useSocket.js";
@@ -10,7 +11,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 
 const route = useRoute();
 const router = useRouter();
-const { logout } = useAuth();
+const { logout, user } = useAuth();
 const { clearTrades } = useTrades();
 const { socket } = useSocket();
 const queryClient = useQueryClient();
@@ -70,10 +71,8 @@ onUnmounted(() => {
 					<div><p class="eyebrow">Overview</p><h1>{{ pageTitle }}</h1></div>
 				</div>
 				<div class="topbar-actions">
-					<button class="toolbar-button hide-tablet"><CalendarDays :size="15" /><span>Sep 01 — Sep 13</span><ChevronDown :size="14" /></button>
-					<button class="icon-button" aria-label="Search"><Search :size="18" /></button>
-					<button class="icon-button notification-button" aria-label="Notifications"><Bell :size="18" /><span></span></button>
-					<button class="topbar-avatar" aria-label="Open profile">EH</button>
+					<DateRangeSelector v-if="route.path === '/dashboard'" />
+					<button class="topbar-avatar" aria-label="Open profile" :title="user.displayName">{{ user.initials }}</button>
 				</div>
 			</header>
 			<main class="page-content"><router-view /></main>

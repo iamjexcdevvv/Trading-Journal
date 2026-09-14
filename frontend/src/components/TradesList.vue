@@ -227,7 +227,7 @@ const handleEscape = (e) => {
 								{{ trade.direction }}
 							</span>
 						</td>
-						<td class="px-4 py-3 font-sans text-sm text-text-main whitespace-nowrap align-top">
+						<td class="px-4 py-3 font-sans text-sm text-text-main whitespace-nowrap align-middle">
 							{{ trade.strategy }}
 						</td>
 						<td class="px-4 py-3 w-48 min-w-48 max-w-48">

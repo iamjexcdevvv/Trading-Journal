@@ -39,7 +39,7 @@ async function registerUser(req, res) {
         return res.status(400).json({ error: err.message });
     }
 
-    const accessToken = generateJWTToken({_id: newUser._id, username: newUser.username});
+    const accessToken = generateJWTToken({_id: newUser._id, username: newUser.username, email: newUser.email});
     const refreshToken = generateJWTToken({_id: newUser._id}, '7d');
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
@@ -70,7 +70,7 @@ async function loginUser(req, res) {
     }
 
     const refreshToken = generateJWTToken({_id: user._id}, '7d');
-    const accessToken = generateJWTToken({_id: user._id, username: user.username});
+    const accessToken = generateJWTToken({_id: user._id, username: user.username, email: user.email});
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     user.refreshToken = hashedRefreshToken;
@@ -109,7 +109,7 @@ async function refreshToken(req, res) {
     }
 
     const refreshToken = generateJWTToken({_id: user._id}, '7d');
-    const accessToken = generateJWTToken({_id: user._id, username: user.username});
+    const accessToken = generateJWTToken({_id: user._id, username: user.username, email: user.email});
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     user.refreshToken = hashedRefreshToken;
@@ -178,7 +178,7 @@ async function googleAuth(req, res) {
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-    const accessToken = generateJWTToken({_id: user._id, username: user.username});
+    const accessToken = generateJWTToken({_id: user._id, username: user.username, email: user.email});
 
     // Redirect to frontend callback page with access token
     return res.redirect(`${process.env.FRONTEND_URL}/auth/callback?accessToken=${accessToken}`);
