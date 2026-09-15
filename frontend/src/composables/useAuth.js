@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 
 const token = ref(null);
+const isCheckingAuth = ref(true);
 
 function decodeTokenPayload(value) {
 	if (!value) return null;
@@ -22,6 +23,14 @@ export function useAuth() {
 
 	const logout = () => {
 		token.value = null;
+	};
+
+	const startAuthCheck = () => {
+		isCheckingAuth.value = true;
+	};
+
+	const finishAuthCheck = () => {
+		isCheckingAuth.value = false;
 	};
 
 	const isLoggedIn = computed(() => !!token.value);
@@ -48,6 +57,9 @@ export function useAuth() {
 		token,
 		setToken,
 		logout,
+		isCheckingAuth,
+		startAuthCheck,
+		finishAuthCheck,
 		isLoggedIn,
 		user,
 	};

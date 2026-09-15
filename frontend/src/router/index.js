@@ -92,11 +92,12 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
-	const { isLoggedIn, setToken } = useAuth();
+	const { isLoggedIn, setToken, startAuthCheck } = useAuth();
 	const apiURL = import.meta.env.VITE_API_BASE_URL;
 
 	// Protected routes - require authentication
 	if (to.meta.requiresAuth && !isLoggedIn.value) {
+		startAuthCheck();
 		try {
 			const res = await fetch(`${apiURL}/api/auth/refresh`, {
 				method: "POST",
@@ -131,6 +132,11 @@ router.beforeEach(async (to, from, next) => {
 	}
 
 	next();
+});
+
+router.afterEach(() => {
+	const { finishAuthCheck } = useAuth();
+	finishAuthCheck();
 });
 
 export default router;

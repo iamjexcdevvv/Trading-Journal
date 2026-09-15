@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { Menu } from "lucide-vue-next";
 import NavigationSidebar from "./components/NavigationSidebar.vue";
 import DateRangeSelector from "./components/DateRangeSelector.vue";
+import Loading from "./components/Loading.vue";
 import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
 import { useSocket } from "./composables/useSocket.js";
@@ -11,7 +12,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 
 const route = useRoute();
 const router = useRouter();
-const { logout, user } = useAuth();
+const { isCheckingAuth, logout, user } = useAuth();
 const { clearTrades } = useTrades();
 const { socket } = useSocket();
 const queryClient = useQueryClient();
@@ -60,7 +61,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<router-view v-if="isAuthPage" />
+	<div v-if="isCheckingAuth" class="min-h-screen flex items-center justify-center bg-background">
+		<Loading message="Checking authentication..." />
+	</div>
+	<router-view v-else-if="isAuthPage" />
 	<div v-else class="app-shell">
 		<div v-if="sidebarOpen" class="sidebar-scrim" @click="sidebarOpen = false"></div>
 		<NavigationSidebar :is-mobile-open="sidebarOpen" @close="sidebarOpen = false" @logout="handleLogout" />
