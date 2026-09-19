@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { Trash2, ArrowUpRight, ArrowDownRight, ArrowUp, ArrowDown, Pencil } from "lucide-vue-next";
+import TradeDetailsModal from "./TradeDetailsModal.vue";
 
 const props = defineProps({
 	trades: { type: Array, required: true },
@@ -8,6 +9,8 @@ const props = defineProps({
 });
 
 defineEmits(["delete", "edit"]);
+
+const selectedTrade = ref(null);
 
 const hasTrades = computed(() => props.trades.length > 0);
 
@@ -176,8 +179,14 @@ const handleEscape = (e) => {
 					<tr
 						v-for="trade in sortedTrades"
 						:key="trade.id"
+						@click="selectedTrade = trade"
+						@keydown.enter.self="selectedTrade = trade"
+						@keydown.space.self.prevent="selectedTrade = trade"
+						tabindex="0"
+						role="button"
+						:aria-label="`View ${trade.symbol} trade details`"
 						:class="[
-							'group border-b border-border/60 hover:bg-surface-hover/60 transition-colors duration-100',
+							'group border-b border-border/60 hover:bg-surface-hover/60 transition-colors duration-100 cursor-pointer focus-visible:outline focus-visible:outline-primary',
 							trade.id === lastAddedId && 'row-in',
 						]"
 						:data-testid="`trade-row-${trade.id}`"
@@ -245,13 +254,14 @@ const handleEscape = (e) => {
 									<img
 										v-if="isImage(trade.screenshot)"
 										:src="getDisplayImageUrl(trade.screenshot)"
-										@click="openLightbox(trade.screenshot)"
+										@click.stop="openLightbox(trade.screenshot)"
 										class="w-12 h-8 object-cover rounded border border-border/80 hover:border-primary/60 cursor-zoom-in hover:scale-105 transition-all duration-150"
 										alt="Screenshot thumbnail"
 									/>
 									<a
 										v-else
 										:href="trade.screenshot"
+										@click.stop
 										target="_blank"
 										class="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase text-primary hover:underline"
 									>
@@ -294,7 +304,7 @@ const handleEscape = (e) => {
 							<div class="flex items-center justify-end gap-1">
 								<button
 									type="button"
-									@click="$emit('edit', trade)"
+									@click.stop="$emit('edit', trade)"
 									:data-testid="`edit-trade-btn-${trade.id}`"
 									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
 									aria-label="Edit trade"
@@ -303,7 +313,7 @@ const handleEscape = (e) => {
 								</button>
 								<button
 									type="button"
-									@click="$emit('delete', trade.id, trade._id)"
+									@click.stop="$emit('delete', trade.id, trade._id)"
 									:data-testid="`delete-trade-btn-${trade.id}`"
 									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
 									aria-label="Delete trade"
@@ -317,6 +327,7 @@ const handleEscape = (e) => {
 			</table>
 		</div>
 	</div>
+	<TradeDetailsModal :trade="selectedTrade" @close="selectedTrade = null" />
 
 	<!-- Lightbox Teleport -->
 	<Teleport to="body">
