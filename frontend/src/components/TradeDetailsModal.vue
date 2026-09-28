@@ -114,6 +114,14 @@ onUnmounted(() => document.removeEventListener("keydown", handleEscape));
 						<p class="text-sm whitespace-pre-wrap break-words">{{ display(trade.notes) }}</p>
 					</div>
 					<div>
+						<h3 class="font-mono text-[10px] uppercase tracking-widest text-text-muted mb-2">Mistakes</h3>
+						<p class="text-sm whitespace-pre-wrap break-words" data-testid="trade-detail-mistakes">{{ display(trade.mistakes) }}</p>
+					</div>
+					<div>
+						<h3 class="font-mono text-[10px] uppercase tracking-widest text-text-muted mb-2">Actionable takeaways</h3>
+						<p class="text-sm whitespace-pre-wrap break-words" data-testid="trade-detail-actionable-takeaways">{{ display(trade.actionableTakeaways) }}</p>
+					</div>
+					<div>
 						<h3 class="font-mono text-[10px] uppercase tracking-widest text-text-muted mb-2">Screenshot</h3>
 						<p v-if="!trade.screenshot" class="text-sm text-text-muted">—</p>
 						<a v-else :href="trade.screenshot" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Open screenshot</a>

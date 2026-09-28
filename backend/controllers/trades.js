@@ -20,6 +20,8 @@ const tradeSchema = Joi.object({
         required: Joi.boolean().default(true),
     })).optional(),
     notes: Joi.string().allow('').optional(),
+    mistakes: Joi.string().allow('').optional(),
+    actionableTakeaways: Joi.string().allow('').optional(),
     pnl: Joi.number().allow(null).optional(),
     entryPrice: Joi.number().positive().allow(null).optional(),
     exitPrice: Joi.number().positive().allow(null).optional(),

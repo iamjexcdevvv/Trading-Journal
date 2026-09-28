@@ -20,6 +20,8 @@ const symbol = ref("");
 const direction = ref("Long");
 const strategy = ref("");
 const notes = ref("");
+const mistakes = ref("");
+const actionableTakeaways = ref("");
 const pnl = ref("");
 const entryPrice = ref("");
 const exitPrice = ref("");
@@ -104,6 +106,8 @@ watch(
 			direction.value = newTrade.direction || "Long";
 			strategy.value = newTrade.strategy || "";
 			notes.value = newTrade.notes || "";
+			mistakes.value = newTrade.mistakes || "";
+			actionableTakeaways.value = newTrade.actionableTakeaways || "";
 			pnl.value = newTrade.pnl !== null && newTrade.pnl !== undefined ? newTrade.pnl.toString() : "";
 			entryPrice.value = newTrade.entryPrice !== null && newTrade.entryPrice !== undefined ? newTrade.entryPrice.toString() : "";
 			exitPrice.value = newTrade.exitPrice !== null && newTrade.exitPrice !== undefined ? newTrade.exitPrice.toString() : "";
@@ -190,6 +194,8 @@ const onSubmit = () => {
 	const parsedRMultiple = rMultiple.value === "" ? null : Number(rMultiple.value);
 	const cleanedSymbol = symbol.value.trim().toUpperCase();
 	const cleanedNotes = notes.value.trim();
+	const cleanedMistakes = mistakes.value.trim();
+	const cleanedActionableTakeaways = actionableTakeaways.value.trim();
 
 	emit("submit", {
 		_id: props.trade._id,
@@ -200,6 +206,8 @@ const onSubmit = () => {
 			direction: direction.value,
 			strategy: strategy.value,
 			notes: cleanedNotes,
+			mistakes: cleanedMistakes,
+			actionableTakeaways: cleanedActionableTakeaways,
 			pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
 			entryPrice: Number.isFinite(parsedEntryPrice) ? parsedEntryPrice : null,
 			exitPrice: Number.isFinite(parsedExitPrice) ? parsedExitPrice : null,
@@ -514,6 +522,31 @@ const onSubmit = () => {
 									placeholder="Setup, emotions, observations…"
 									class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-none"
 									data-testid="edit-trade-notes-textarea"
+								></textarea>
+							</div>
+
+							<!-- Review -->
+							<div class="flex flex-col gap-1.5">
+								<label for="edit-mistakes" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Mistakes</label>
+								<textarea
+									id="edit-mistakes"
+									v-model="mistakes"
+									rows="4"
+									placeholder="What went wrong or could be improved?"
+									class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-y"
+									data-testid="edit-trade-mistakes-textarea"
+								></textarea>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="edit-actionable-takeaways" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Actionable Takeaways</label>
+								<textarea
+									id="edit-actionable-takeaways"
+									v-model="actionableTakeaways"
+									rows="4"
+									placeholder="What will you do differently next time?"
+									class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-y"
+									data-testid="edit-trade-actionable-takeaways-textarea"
 								></textarea>
 							</div>
 

@@ -10,6 +10,8 @@ const tradeSchema = new mongoose.Schema({
     checklist: [{ label: String, checked: Boolean, required: { type: Boolean, default: true }, _id: false }],
     rulesChecklist: [{ label: String, checked: Boolean, required: { type: Boolean, default: true }, _id: false }],
     notes: String,
+    mistakes: String,
+    actionableTakeaways: String,
     pnl: Number,
     screenshot: String,
     tags: [String],

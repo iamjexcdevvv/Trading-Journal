@@ -19,6 +19,8 @@ const symbol = ref(route.query.symbol || "");
 const direction = ref(route.query.direction || "Long");
 const strategy = ref(route.query.strategy || "");
 const notes = ref(route.query.notes || "");
+const mistakes = ref("");
+const actionableTakeaways = ref("");
 const justSubmitted = ref(false);
 const pnl = ref(route.query.pnl || "");
 const entryPrice = ref(route.query.entryPrice || "");
@@ -126,6 +128,8 @@ const onSubmit = () => {
 	const parsedRMultiple = rMultiple.value === "" ? null : Number(rMultiple.value);
 	const cleanedSymbol = symbol.value.trim().toUpperCase();
 	const cleanedNotes = notes.value.trim();
+	const cleanedMistakes = mistakes.value.trim();
+	const cleanedActionableTakeaways = actionableTakeaways.value.trim();
 
 	emit("submit", {
 		date: tradeDate.value,
@@ -133,6 +137,8 @@ const onSubmit = () => {
 		direction: direction.value,
 		strategy: strategy.value,
 		notes: cleanedNotes,
+		mistakes: cleanedMistakes,
+		actionableTakeaways: cleanedActionableTakeaways,
 		pnl: Number.isFinite(parsedPnl) ? parsedPnl : null,
 		entryPrice: Number.isFinite(parsedEntryPrice) ? parsedEntryPrice : null,
 		exitPrice: Number.isFinite(parsedExitPrice) ? parsedExitPrice : null,
@@ -152,6 +158,8 @@ const resetInputs = () => {
 	direction.value = "Long";
 	strategy.value = "";
 	notes.value = "";
+	mistakes.value = "";
+	actionableTakeaways.value = "";
 	justSubmitted.value = true;
 	pnl.value = "";
 	entryPrice.value = "";
@@ -457,6 +465,31 @@ const toggleTag = (tag) => {
 				placeholder="Setup, emotions, observations…"
 				class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-none"
 				data-testid="trade-notes-textarea"
+			></textarea>
+		</div>
+
+		<!-- Review -->
+		<div class="flex flex-col gap-1.5">
+			<label for="mistakes" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Mistakes</label>
+			<textarea
+				id="mistakes"
+				v-model="mistakes"
+				rows="4"
+				placeholder="What went wrong or could be improved?"
+				class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-y"
+				data-testid="trade-mistakes-textarea"
+			></textarea>
+		</div>
+
+		<div class="flex flex-col gap-1.5">
+			<label for="actionable-takeaways" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Actionable Takeaways</label>
+			<textarea
+				id="actionable-takeaways"
+				v-model="actionableTakeaways"
+				rows="4"
+				placeholder="What will you do differently next time?"
+				class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100 resize-y"
+				data-testid="trade-actionable-takeaways-textarea"
 			></textarea>
 		</div>
 
