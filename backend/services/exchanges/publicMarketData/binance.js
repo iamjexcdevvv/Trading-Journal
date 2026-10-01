@@ -6,6 +6,34 @@ const WS_BASE_URL = 'wss://fstream.binance.com/ws';
 const RECONNECT_DELAY_MS = 5000;
 const SYMBOLS_CACHE_TTL_MS = 60 * 60 * 1000;
 
+function normalizeCandle(row) {
+    return {
+        time: Number(row[0]) / 1000,
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5])
+    };
+}
+
+async function getCandles(symbol, interval, limit, endTime) {
+    const query = new URLSearchParams({ symbol, interval, limit: String(limit) });
+    if (endTime !== undefined) query.set('endTime', String(endTime));
+    const response = await fetch(`${BASE_URL}/fapi/v1/klines?${query}`);
+    if (!response.ok) throw new Error(`Binance klines error (${response.status})`);
+    return (await response.json()).map(normalizeCandle).sort((a, b) => a.time - b.time);
+}
+
+async function getCurrentPrice(symbol) {
+    const query = new URLSearchParams({ symbol });
+    const response = await fetch(`${BASE_URL}/fapi/v1/ticker/price?${query}`);
+    if (!response.ok) throw new Error(`Binance ticker error (${response.status})`);
+    const price = Number((await response.json()).price);
+    if (!Number.isFinite(price)) throw new Error('Binance returned an invalid price');
+    return price;
+}
+
 let symbolsCache = null;
 let symbolsCacheTime = 0;
 
@@ -60,4 +88,4 @@ function connectTicker(symbol, onPrice, onError) {
     };
 }
 
-module.exports = { getSymbols, connectTicker };
+module.exports = { getSymbols, getCandles, getCurrentPrice, connectTicker };

@@ -51,7 +51,10 @@ async function getUserStrategies(req, res) {
 
 async function deleteStrategy(req, res) {
   try {
-        const removedStrategy = await deleteStrategyById(req.params.id);
+        const removedStrategy = await deleteStrategyById(req.params.id, req.user._id);
+        if (!removedStrategy) {
+            return res.status(404).json({ error: 'Strategy not found' });
+        }
         res.status(200).json(removedStrategy);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -65,7 +68,10 @@ async function updateStrategy(req, res) {
             return res.status(400).json({ error: error.details[0].message });
         }
 
-        const updatedStrategy = await updateStrategyById(req.params.id, req.body);
+        const updatedStrategy = await updateStrategyById(req.params.id, req.user._id, req.body);
+        if (!updatedStrategy) {
+            return res.status(404).json({ error: 'Strategy not found' });
+        }
         res.status(200).json(updatedStrategy);
     } catch (err) {
         res.status(500).json({ error: err.message });

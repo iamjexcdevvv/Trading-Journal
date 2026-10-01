@@ -24,12 +24,12 @@ async function getConnectionsByUserId(userId) {
     return await ExchangeConnection.find({ userId }).sort({ createdAt: -1 });
 }
 
-async function getConnectionById(id) {
-    return await ExchangeConnection.findById(id);
+async function getConnectionById(id, userId) {
+    return await ExchangeConnection.findOne({ _id: id, userId });
 }
 
-async function deleteConnectionById(id) {
-    return await ExchangeConnection.findByIdAndDelete(id);
+async function deleteConnectionById(id, userId) {
+    return await ExchangeConnection.findOneAndDelete({ _id: id, userId });
 }
 
 async function updateConnectionStatus(id, status, lastError = null) {

@@ -45,28 +45,28 @@ async function getTradesByUserId(userId) {
     return await Trade.find({ userId });
 }
 
-async function deleteTradeById(id) {
-    await Trade.deleteOne({ _id: id });
+async function deleteTradeById(id, userId) {
+    return await Trade.findOneAndDelete({ _id: id, userId });
 }
 
-async function updateTradeNotesById(id, notes) {
-    return await Trade.findByIdAndUpdate(id, { $set: { notes } }, { returnDocument: 'after', runValidators: true });
+async function updateTradeNotesById(id, userId, notes) {
+    return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: { notes } }, { returnDocument: 'after', runValidators: true });
 }
 
-async function updateTradeScreenshotById(id, screenshot) {
-    return await Trade.findByIdAndUpdate(id, { $set: { screenshot } }, { returnDocument: 'after', runValidators: true });
+async function updateTradeScreenshotById(id, userId, screenshot) {
+    return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: { screenshot } }, { returnDocument: 'after', runValidators: true });
 }
 
-async function updateTradeById(id, tradeData) {
-    return await Trade.findByIdAndUpdate(id, { $set: tradeData }, { returnDocument: 'after', runValidators: true });
+async function updateTradeById(id, userId, tradeData) {
+    return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: tradeData }, { returnDocument: 'after', runValidators: true });
 }
 
 async function findSyncedTrade(userId, exchange, externalId) {
     return await Trade.findOne({ userId, exchange, externalId });
 }
 
-async function closeSyncedTrade(id, closeData) {
-    return await Trade.findByIdAndUpdate(id, { $set: { status: 'closed', ...closeData } }, { returnDocument: 'after' });
+async function closeSyncedTrade(id, userId, closeData) {
+    return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: { status: 'closed', ...closeData } }, { returnDocument: 'after' });
 }
 
 module.exports = {

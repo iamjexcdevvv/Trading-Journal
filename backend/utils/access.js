@@ -1,11 +1,9 @@
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'dublasandrei@gmail.com').toLowerCase();
-
-function isAdminUser(user) {
-    return user?.role === 'admin' || user?.email?.toLowerCase() === ADMIN_EMAIL;
+function hasAdminRole(user) {
+    return user?.role === 'admin';
 }
 
 function isApprovedUser(user) {
-    return isAdminUser(user) || !user?.approvalStatus || user.approvalStatus === 'approved';
+    return hasAdminRole(user) || !user?.approvalStatus || user.approvalStatus === 'approved';
 }
 
 function accessTokenPayload(user) {
@@ -13,8 +11,8 @@ function accessTokenPayload(user) {
         _id: user._id,
         username: user.username,
         email: user.email,
-        role: isAdminUser(user) ? 'admin' : 'user'
+        role: hasAdminRole(user) ? 'admin' : 'user'
     };
 }
 
-module.exports = { ADMIN_EMAIL, isAdminUser, isApprovedUser, accessTokenPayload };
+module.exports = { hasAdminRole, isApprovedUser, accessTokenPayload };

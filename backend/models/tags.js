@@ -17,12 +17,12 @@ async function getUserTagsById(userId) {
     return await Tag.find({ userId });
 }
 
-async function deleteTagById(id) {
-    return await Tag.findByIdAndDelete(id);
+async function deleteTagById(id, userId) {
+    return await Tag.findOneAndDelete({ _id: id, userId });
 }
 
-async function updateTagById(id, name) {
-    return await Tag.findByIdAndUpdate(id, { $set: { name } }, { returnDocument: 'after', runValidators: true });
+async function updateTagById(id, userId, name) {
+    return await Tag.findOneAndUpdate({ _id: id, userId }, { $set: { name } }, { returnDocument: 'after', runValidators: true });
 }
 
 module.exports = {

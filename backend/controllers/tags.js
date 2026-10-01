@@ -45,7 +45,10 @@ async function deleteUserTag(req, res) {
     const {id} = req.params;
 
     try {
-        const deletedData = await deleteTagById(id);
+        const deletedData = await deleteTagById(id, req.user._id);
+        if (!deletedData) {
+            return res.status(404).json({ error: 'Tag not found' });
+        }
         res.status(200).json(deletedData);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -62,7 +65,10 @@ async function updateUserTag(req, res) {
     const {name} = req.body;
     
     try {
-        const updatedData = await updateTagById(id, name);
+        const updatedData = await updateTagById(id, req.user._id, name);
+        if (!updatedData) {
+            return res.status(404).json({ error: 'Tag not found' });
+        }
         res.status(200).json(updatedData);
     } catch (error) {
         res.status(500).json({ message: error.message });

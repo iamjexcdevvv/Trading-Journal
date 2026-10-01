@@ -18,12 +18,12 @@ async function getStrategiesByUserId(userId) {
     return await Strategy.find({ userId });
 }
 
-async function deleteStrategyById(strategyId) {
-    return await Strategy.findByIdAndDelete(strategyId);
+async function deleteStrategyById(strategyId, userId) {
+    return await Strategy.findOneAndDelete({ _id: strategyId, userId });
 }
 
-async function updateStrategyById(strategyId, updateData) {
-    return await Strategy.findByIdAndUpdate(strategyId, updateData, { returnDocument: 'after', runValidators: true });
+async function updateStrategyById(strategyId, userId, updateData) {
+    return await Strategy.findOneAndUpdate({ _id: strategyId, userId }, updateData, { returnDocument: 'after', runValidators: true });
 }
 
 module.exports = { saveStrategy, getStrategiesByUserId, deleteStrategyById, updateStrategyById };

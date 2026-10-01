@@ -48,7 +48,7 @@ async function updateTradeNotes(req, res) {
         const { id } = req.params;
         const { notes } = req.body;
 
-        const updatedTrade = await updateTradeNotesById(id, notes);
+        const updatedTrade = await updateTradeNotesById(id, req.user._id, notes);
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }
@@ -77,7 +77,10 @@ async function getTrades(req, res) {
 async function deleteTrade(req, res) {
     try {
         const { id } = req.params;
-        await deleteTradeById(id);
+        const deletedTrade = await deleteTradeById(id, req.user._id);
+        if (!deletedTrade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
         res.status(200).json({ message: 'Trade deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -120,7 +123,7 @@ async function updateTradeScreenshot(req, res) {
         const { id } = req.params;
         const { screenshot } = req.body;
 
-        const updatedTrade = await updateTradeScreenshotById(id, screenshot);
+        const updatedTrade = await updateTradeScreenshotById(id, req.user._id, screenshot);
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }
@@ -143,7 +146,7 @@ async function updateTrade(req, res) {
             tradeData.date = new Date(tradeData.date);
         }
 
-        const updatedTrade = await updateTradeById(id, tradeData);
+        const updatedTrade = await updateTradeById(id, req.user._id, tradeData);
         if (!updatedTrade) {
             return res.status(404).json({ error: 'Trade not found' });
         }

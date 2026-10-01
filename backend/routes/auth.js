@@ -3,7 +3,16 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const passport = require('passport');
 
-const { registerUser, loginUser, refreshToken, logoutUser, googleAuth } = require('../controllers/auth');
+const {
+      registerUser,
+      loginUser,
+      refreshToken,
+      logoutUser,
+      googleAuth,
+      exchangeOAuthCode,
+      beginGoogleAuth,
+      verifyGoogleState
+} = require('../controllers/auth');
 
 const authRateLimiter = rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
@@ -20,10 +29,20 @@ router.post('/register', authRateLimiter, registerUser)
 router.post('/login', authRateLimiter, loginUser)
 router.post('/refresh', refreshToken)
 router.post('/logout', logoutUser)
+router.post('/oauth/exchange', authRateLimiter, exchangeOAuthCode)
 
-router.get('/google', passport.authenticate('google', { scope:
-      [ 'email', 'profile' ] }
-))
-router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login` }), googleAuth)
+router.get('/google', beginGoogleAuth, (req, res, next) => {
+      return passport.authenticate('google', {
+            scope: ['email', 'profile'],
+            state: res.locals.oauthState,
+            session: false
+      })(req, res, next);
+})
+router.get(
+      '/google/callback',
+      verifyGoogleState,
+      passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login?oauth=failed` }),
+      googleAuth
+)
 
 module.exports = router;

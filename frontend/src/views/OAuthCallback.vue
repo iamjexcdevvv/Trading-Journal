@@ -6,27 +6,37 @@ import { useAuth } from "../composables/useAuth.js";
 const router = useRouter();
 const route = useRoute();
 const { setToken } = useAuth();
+const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
 const error = ref("");
 const isLoading = ref(true);
 
-onMounted(() => {
-	// Check if there's an access token in the query params or hash
-	const accessToken = route.query.accessToken || route.hash?.match(/access_token=([^&]+)/)?.[1];
+onMounted(async () => {
+	const code = typeof route.query.code === "string" ? route.query.code : null;
+	window.history.replaceState({}, document.title, route.path);
 
-	if (accessToken) {
-		// Store the token
-		setToken(accessToken);
-		// Redirect to main app
-		router.push("/");
-	} else {
-		// Check for error in query params
-		const errorParam = route.query.error;
-		if (errorParam) {
-			error.value = errorParam;
-		} else {
-			error.value = "Authentication failed. Please try again.";
-		}
+	if (!code) {
+		error.value = "Authentication failed. Please try again.";
+		isLoading.value = false;
+		return;
+	}
+
+	try {
+		const response = await fetch(`${apiUrl}/api/auth/oauth/exchange`, {
+			method: "POST",
+			credentials: "include",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ code }),
+		});
+		if (!response.ok) throw new Error("OAuth exchange rejected");
+
+		const data = await response.json();
+		if (!data.accessToken) throw new Error("OAuth exchange incomplete");
+
+		setToken(data.accessToken);
+		await router.replace("/");
+	} catch {
+		error.value = "Authentication failed or expired. Please try again.";
 		isLoading.value = false;
 	}
 });

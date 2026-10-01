@@ -77,12 +77,12 @@ async function deleteExchangeConnection(req, res) {
     }
 
     const { id } = req.params;
-    const connection = await getConnectionById(id);
-    if (!connection || connection.userId.toString() !== user._id.toString()) {
+    const connection = await getConnectionById(id, user._id);
+    if (!connection) {
         return res.status(404).json({ error: 'Connection not found' });
     }
 
-    await deleteConnectionById(id);
+    await deleteConnectionById(id, user._id);
     removeConnectionFromSync(connection._id);
 
     return res.status(200).json({ message: 'Connection removed' });
@@ -96,8 +96,8 @@ async function syncExchangeConnectionNow(req, res) {
     }
 
     const { id } = req.params;
-    const connection = await getConnectionById(id);
-    if (!connection || connection.userId.toString() !== user._id.toString()) {
+    const connection = await getConnectionById(id, user._id);
+    if (!connection) {
         return res.status(404).json({ error: 'Connection not found' });
     }
 

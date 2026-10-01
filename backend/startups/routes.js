@@ -13,9 +13,9 @@ const connectionRoutes = require('../routes/connections');
 const marketRoutes = require('../routes/market');
 const adminApprovalRoutes = require('../routes/adminApprovals');
 
-module.exports = function (app, logger, globalRateLimiter) {
+module.exports = function (app, logger, globalRateLimiter, frontendUrl) {
     app.use(cors({
-        origin: process.env.FRONTEND_URL,  // your frontend URL
+        origin: frontendUrl,
         credentials: true                 // allow cookies
     }));
     app.use(express.json({ limit: '10mb' }));

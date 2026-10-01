@@ -7,6 +7,40 @@ const PING_INTERVAL_MS = 20000;
 const RECONNECT_DELAY_MS = 5000;
 const SYMBOLS_CACHE_TTL_MS = 60 * 60 * 1000;
 
+const INTERVALS = { '1m': '1', '5m': '5', '15m': '15', '30m': '30', '1h': '60', '4h': '240', '1d': 'D' };
+
+function normalizeCandle(row) {
+    return {
+        time: Number(row[0]) / 1000,
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5])
+    };
+}
+
+async function getCandles(symbol, interval, limit, endTime) {
+    const query = new URLSearchParams({ category: 'linear', symbol, interval: INTERVALS[interval], limit: String(limit) });
+    if (endTime !== undefined) query.set('end', String(endTime));
+    const response = await fetch(`${BASE_URL}/v5/market/kline?${query}`);
+    if (!response.ok) throw new Error(`Bybit kline error (${response.status})`);
+    const data = await response.json();
+    if (data.retCode !== 0) throw new Error(data.retMsg || 'Bybit kline error');
+    return (data.result?.list || []).map(normalizeCandle).sort((a, b) => a.time - b.time);
+}
+
+async function getCurrentPrice(symbol) {
+    const query = new URLSearchParams({ category: 'linear', symbol });
+    const response = await fetch(`${BASE_URL}/v5/market/tickers?${query}`);
+    if (!response.ok) throw new Error(`Bybit ticker error (${response.status})`);
+    const data = await response.json();
+    if (data.retCode !== 0) throw new Error(data.retMsg || 'Bybit ticker error');
+    const price = Number(data.result?.list?.[0]?.lastPrice);
+    if (!Number.isFinite(price)) throw new Error('Bybit returned an invalid price');
+    return price;
+}
+
 let symbolsCache = null;
 let symbolsCacheTime = 0;
 
@@ -82,4 +116,4 @@ function connectTicker(symbol, onPrice, onError) {
     };
 }
 
-module.exports = { getSymbols, connectTicker };
+module.exports = { getSymbols, getCandles, getCurrentPrice, connectTicker };

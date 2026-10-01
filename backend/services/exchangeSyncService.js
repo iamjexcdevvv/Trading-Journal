@@ -53,7 +53,7 @@ async function closePosition(connection, trade) {
     const fee = closingFills.reduce((sum, f) => sum + (f.fee || 0), 0);
     const lastFill = closingFills[closingFills.length - 1];
 
-    const updated = await closeSyncedTrade(trade._id, {
+    const updated = await closeSyncedTrade(trade._id, connection.userId, {
         exitPrice: lastFill ? lastFill.price : trade.entryPrice,
         pnl,
         fee
@@ -92,7 +92,7 @@ async function handlePositionUpdate(connection, position) {
         // (e.g. Binance reuses `${symbol}-${positionSide}`), so a reopened position on the
         // same symbol/side maps back to this already-closed row. Reset it instead of creating
         // a new one, or the unique {userId, exchange, externalId} index would reject the insert.
-        const trade = await updateTradeById(existing._id, {
+        const trade = await updateTradeById(existing._id, connection.userId, {
             symbol: position.symbol,
             direction: position.direction,
             entryPrice: position.entryPrice,

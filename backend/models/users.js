@@ -1,17 +1,35 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    email: { type: String, required: false, unique: true, lowercase: true },
-    googleId: { type: String, unique: true },
-    username: {type: String, required: false, minlength: 3},
-    password: {type: String, required: false, minlength: 6},
+    email: { type: String, required: false, trim: true, lowercase: true },
+    googleId: { type: String, trim: true },
+    username: { type: String, required: false, trim: true, minlength: 3 },
     hashedPassword: {type: String, required: false},
     refreshToken: {type: String},
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     approvalStatus: { type: String, enum: ['pending', 'approved'] },
     approvedAt: Date,
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-}, { timestamps: true })
+}, { timestamps: true, autoIndex: false });
+
+// Index creation is performed only by the audited migration utility. Disabling
+// autoIndex prevents an application deployment from mutating production indexes.
+userSchema.index(
+    { email: 1 },
+    { unique: true, name: 'users_email_unique', partialFilterExpression: { email: { $type: 'string' } } }
+);
+userSchema.index(
+    { googleId: 1 },
+    { unique: true, name: 'users_google_id_unique', partialFilterExpression: { googleId: { $type: 'string' } } }
+);
+userSchema.index(
+    { username: 1 },
+    {
+        unique: true,
+        name: 'users_local_username_unique',
+        partialFilterExpression: { username: { $type: 'string' }, hashedPassword: { $type: 'string' } }
+    }
+);
 
 const User = mongoose.model('User', userSchema);
 
@@ -22,7 +40,7 @@ async function saveUser(userData) {
 }
 
 async function getUser(username) {
-    return await User.findOne({ username });
+    return await User.findOne({ username, hashedPassword: { $type: 'string' } });
 }
 
 async function getUserById(id) {
@@ -49,4 +67,4 @@ async function approveUserById(id, adminId) {
     ).select('_id username email createdAt approvalStatus approvedAt');
 }
 
-module.exports = { saveUser, getUser, getUserById, getUserByGoogleId, getUserByEmail, getPendingUsers, approveUserById };
+module.exports = { User, saveUser, getUser, getUserById, getUserByGoogleId, getUserByEmail, getPendingUsers, approveUserById };
