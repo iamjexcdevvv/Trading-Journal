@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const { fetchJson } = require('./http');
 
 const BASE_URL = 'https://fapi.binance.com';
+const WALLET_BASE_URL = 'https://api.binance.com';
 const WS_BASE_URL = 'wss://fstream.binance.com/ws';
 const LISTEN_KEY_KEEPALIVE_MS = 30 * 60 * 1000;
 const RECONNECT_DELAY_MS = 5000;
@@ -13,14 +15,25 @@ function sign(queryString, secret) {
 async function signedRequest(method, path, params, creds) {
     const query = new URLSearchParams({ ...params, timestamp: Date.now(), recvWindow: 5000 }).toString();
     const signature = sign(query, creds.apiSecret);
-    const response = await fetch(`${BASE_URL}${path}?${query}&signature=${signature}`, {
+    const { response, data } = await fetchJson(`${BASE_URL}${path}?${query}&signature=${signature}`, {
         method,
         headers: { 'X-MBX-APIKEY': creds.apiKey }
-    });
-    const data = await response.json();
+    }, 'Binance');
     if (!response.ok) {
         throw new Error(data.msg || `Binance API error (${response.status})`);
     }
+    return data;
+}
+
+async function getApiRestrictions(creds) {
+    const query = new URLSearchParams({ timestamp: Date.now(), recvWindow: 5000 }).toString();
+    const signature = sign(query, creds.apiSecret);
+    const { response, data } = await fetchJson(
+        `${WALLET_BASE_URL}/sapi/v1/account/apiRestrictions?${query}&signature=${signature}`,
+        { method: 'GET', headers: { 'X-MBX-APIKEY': creds.apiKey } },
+        'Binance'
+    );
+    if (!response.ok) throw new Error(data.msg || `Binance API error (${response.status})`);
     return data;
 }
 
@@ -39,7 +52,25 @@ function normalizePosition(symbol, positionSide, positionAmt, entryPrice, levera
     };
 }
 
+async function assertReadOnly(creds) {
+    const permissions = await getApiRestrictions(creds);
+    const dangerousPermissions = [
+        'enableWithdrawals',
+        'enableMargin',
+        'enableFutures',
+        'enableVanillaOptions',
+        'enableSpotAndMarginTrading',
+        'enablePortfolioMarginTrading',
+        'enableFixApiTrade'
+    ];
+    if (!permissions.enableReading) throw new Error('API key does not have read permission');
+    if (dangerousPermissions.some(permission => permissions[permission] === true)) {
+        throw new Error('API key must have read-only permission');
+    }
+}
+
 async function testConnection(creds) {
+    await assertReadOnly(creds);
     await signedRequest('GET', '/fapi/v1/positionInformation', {}, creds);
 }
 
@@ -51,7 +82,19 @@ async function getOpenPositions(creds) {
 }
 
 async function getFillsSince(creds, symbol, sinceMs) {
-    const fills = await signedRequest('GET', '/fapi/v1/userTrades', { symbol, startTime: sinceMs, limit: 1000 }, creds);
+    const fills = [];
+    let params = { symbol, startTime: sinceMs, limit: 1000 };
+    for (let page = 0; page < 20; page += 1) {
+        const batch = await signedRequest('GET', '/fapi/v1/userTrades', params, creds);
+        if (!Array.isArray(batch)) throw new Error('Unexpected Binance trade history response');
+        fills.push(...batch);
+        if (batch.length < 1000) break;
+        if (page === 19) throw new Error('Binance trade history exceeds safe pagination limit');
+        const lastId = Number(batch[batch.length - 1]?.id);
+        if (!Number.isSafeInteger(lastId)) throw new Error('Unexpected Binance trade history response');
+        params = { symbol, fromId: lastId + 1, limit: 1000 };
+    }
+
     return fills.map(f => ({
         price: parseFloat(f.price),
         qty: parseFloat(f.qty),
@@ -63,20 +106,21 @@ async function getFillsSince(creds, symbol, sinceMs) {
 }
 
 async function startListenKey(creds) {
-    const response = await fetch(`${BASE_URL}/fapi/v1/listenKey`, {
+    const { response, data } = await fetchJson(`${BASE_URL}/fapi/v1/listenKey`, {
         method: 'POST',
         headers: { 'X-MBX-APIKEY': creds.apiKey }
-    });
-    const data = await response.json();
+    }, 'Binance');
     if (!response.ok) throw new Error(data.msg || 'Failed to create Binance listenKey');
+    if (typeof data.listenKey !== 'string' || !data.listenKey) throw new Error('Binance returned an invalid listenKey');
     return data.listenKey;
 }
 
-function keepAliveListenKey(creds) {
-    fetch(`${BASE_URL}/fapi/v1/listenKey`, {
+async function keepAliveListenKey(creds) {
+    const { response, data } = await fetchJson(`${BASE_URL}/fapi/v1/listenKey`, {
         method: 'PUT',
         headers: { 'X-MBX-APIKEY': creds.apiKey }
-    }).catch(err => console.error('Binance listenKey keepalive failed:', err.message));
+    }, 'Binance');
+    if (!response.ok) throw new Error(data.msg || 'Binance listenKey keepalive failed');
 }
 
 function connectStream(creds, { onPositionUpdate, onError }) {
@@ -88,16 +132,24 @@ function connectStream(creds, { onPositionUpdate, onError }) {
     async function connect() {
         try {
             const listenKey = await startListenKey(creds);
-            ws = new WebSocket(`${WS_BASE_URL}/${listenKey}`);
+            ws = new WebSocket(`${WS_BASE_URL}/${listenKey}`, { handshakeTimeout: 10_000, maxPayload: 64 * 1024 });
 
             ws.on('open', () => {
-                keepAliveTimer = setInterval(() => keepAliveListenKey(creds), LISTEN_KEY_KEEPALIVE_MS);
+                keepAliveTimer = setInterval(() => {
+                    keepAliveListenKey(creds).catch(error => {
+                        onError(error);
+                        ws?.close();
+                    });
+                }, LISTEN_KEY_KEEPALIVE_MS);
             });
 
             ws.on('message', (raw) => {
                 try {
                     const msg = JSON.parse(raw);
-                    if (msg.e === 'ACCOUNT_UPDATE') {
+                    if (msg.e === 'listenKeyExpired') {
+                        onError(new Error('Binance listenKey expired'));
+                        ws?.close();
+                    } else if (msg.e === 'ACCOUNT_UPDATE') {
                         (msg.a?.P || []).forEach(p => {
                             onPositionUpdate(normalizePosition(p.s, p.ps, p.pa, p.ep, null));
                         });
@@ -135,6 +187,7 @@ module.exports = {
     id: 'binance',
     requiresPassphrase: false,
     supportsRealtime: true,
+    assertReadOnly,
     testConnection,
     getOpenPositions,
     getFillsSince,

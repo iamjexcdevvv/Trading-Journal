@@ -2,11 +2,13 @@ const { Trade, createTrade, updateTradeById, findSyncedTrade, closeSyncedTrade }
 const { ExchangeConnection, updateConnectionStatus, updateLastSyncedAt } = require('../models/exchangeConnections');
 const { decrypt } = require('../utils/encryption');
 const { getAdapter } = require('./exchanges');
+const crypto = require('node:crypto');
 
 let io = null;
 const streamHandles = new Map(); // connectionId -> { stop() }
 let sweepTimer = null;
 let sweepTickCount = 0;
+const connectionLocks = new Map();
 
 const POLL_SWEEP_MS = 10 * 1000;
 const REALTIME_SAFETY_NET_EVERY_N_TICKS = 6; // ~60s at a 10s tick
@@ -31,8 +33,32 @@ function emitSync(userId, trade) {
 }
 
 async function handleConnectionError(connection, err) {
-    console.error(`Exchange sync error for connection ${connection._id} (${connection.exchange}):`, err.message);
-    await updateConnectionStatus(connection._id, 'error', err.message);
+    console.error(`Exchange sync error for connection ${connection._id} (${connection.exchange}):`, err.name || 'Error');
+    await updateConnectionStatus(connection._id, 'error', 'Exchange synchronization failed');
+}
+
+function validatePosition(position) {
+    if (!position || typeof position !== 'object') throw new Error('Exchange returned an invalid position');
+    if (!position.externalId || !position.symbol || !['Long', 'Short'].includes(position.direction)) {
+        throw new Error('Exchange returned an invalid position');
+    }
+    for (const field of ['entryPrice', 'qty']) {
+        if (!Number.isFinite(position[field]) || position[field] < 0) throw new Error('Exchange returned an invalid position');
+    }
+    if (position.leverage != null && (!Number.isFinite(position.leverage) || position.leverage <= 0)) {
+        throw new Error('Exchange returned an invalid position');
+    }
+}
+
+function withConnectionLock(connectionId, operation) {
+    const key = connectionId.toString();
+    const previous = connectionLocks.get(key) || Promise.resolve();
+    const current = previous.catch(() => {}).then(operation);
+    connectionLocks.set(key, current);
+    current.finally(() => {
+        if (connectionLocks.get(key) === current) connectionLocks.delete(key);
+    }).catch(() => {});
+    return current;
 }
 
 async function closePosition(connection, trade) {
@@ -42,13 +68,25 @@ async function closePosition(connection, trade) {
 
     let fills;
     try {
-        fills = await adapter.getFillsSince(creds, trade.symbol, sinceMs);
+        fills = await adapter.getFillsSince(
+            creds,
+            trade.symbol,
+            sinceMs,
+            trade.sourceExternalId || trade.externalId
+        );
     } catch (err) {
-        console.error(`Failed to fetch closing fills for trade ${trade._id}, will retry:`, err.message);
-        return;
+        console.error(`Failed to fetch closing fills for trade ${trade._id}; will retry:`, err.name || 'Error');
+        throw err;
     }
 
-    const closingFills = fills.filter(f => f.time >= sinceMs && (!f.side || f.side === trade.direction));
+    if (!Array.isArray(fills)) throw new Error('Exchange returned invalid closing data');
+    const closingFills = fills.filter(f => Number.isFinite(f.time)
+        && f.time >= sinceMs
+        && Number.isFinite(f.price)
+        && Number.isFinite(f.pnl)
+        && Number.isFinite(f.fee)
+        && (!f.side || f.side === trade.direction));
+    if (closingFills.length === 0) throw new Error('Closing trade data is not available yet');
     const pnl = closingFills.reduce((sum, f) => sum + (f.pnl || 0), 0);
     const fee = closingFills.reduce((sum, f) => sum + (f.fee || 0), 0);
     const lastFill = closingFills[closingFills.length - 1];
@@ -59,11 +97,23 @@ async function closePosition(connection, trade) {
         fee
     });
 
-    emitSync(connection.userId, updated);
+    if (updated) emitSync(connection.userId, updated);
 }
 
 async function handlePositionUpdate(connection, position) {
-    const existing = await findSyncedTrade(connection.userId, connection.exchange, position.externalId);
+    validatePosition(position);
+    const sameExchangeConnections = await ExchangeConnection.countDocuments({
+        userId: connection.userId,
+        exchange: connection.exchange,
+        status: { $ne: 'disabled' }
+    });
+    const existing = await findSyncedTrade(
+        connection.userId,
+        connection._id,
+        connection.exchange,
+        position.externalId,
+        sameExchangeConnections === 1
+    );
 
     if (!position.qty) {
         if (existing && existing.status === 'open') {
@@ -76,53 +126,68 @@ async function handlePositionUpdate(connection, position) {
         const trade = await createTrade({
             userId: connection.userId,
             exchange: connection.exchange,
-            externalId: position.externalId,
+            connectionId: connection._id,
+            sourceExternalId: position.externalId,
+            externalId: `${connection._id}:${position.externalId}:${crypto.randomUUID()}`,
             symbol: position.symbol,
             direction: position.direction,
             entryPrice: position.entryPrice,
             qty: position.qty,
             leverage: position.leverage,
             status: 'open',
-            date: new Date(),
+            date: position.openedAt ? new Date(position.openedAt) : new Date(),
             strategy: 'Synced'
         });
         emitSync(connection.userId, trade);
-    } else if (existing.status !== 'open') {
-        // externalId isn't guaranteed unique per position lifecycle on every exchange
-        // (e.g. Binance reuses `${symbol}-${positionSide}`), so a reopened position on the
-        // same symbol/side maps back to this already-closed row. Reset it instead of creating
-        // a new one, or the unique {userId, exchange, externalId} index would reject the insert.
+    } else {
         const trade = await updateTradeById(existing._id, connection.userId, {
+            connectionId: connection._id,
+            sourceExternalId: position.externalId,
+            externalId: existing.connectionId
+                ? existing.externalId
+                : `${connection._id}:${position.externalId}:${existing._id}`,
             symbol: position.symbol,
             direction: position.direction,
             entryPrice: position.entryPrice,
             qty: position.qty,
             leverage: position.leverage,
-            status: 'open',
-            date: new Date(),
-            exitPrice: null,
-            pnl: null,
-            fee: null
+            status: 'open'
         });
         emitSync(connection.userId, trade);
     }
 }
 
-async function sweepConnection(connection) {
-    const adapter = getAdapter(connection.exchange);
-    const creds = decryptCreds(connection);
-
+async function sweepConnectionUnlocked(connection) {
     try {
+        const adapter = getAdapter(connection.exchange);
+        const creds = decryptCreds(connection);
+        if (adapter.assertReadOnly) await adapter.assertReadOnly(creds);
         const openPositions = await adapter.getOpenPositions(creds);
+        if (!Array.isArray(openPositions)) throw new Error('Exchange returned invalid position data');
+        openPositions.forEach(validatePosition);
         const openExternalIds = new Set(openPositions.map(p => p.externalId));
 
         for (const position of openPositions) {
             await handlePositionUpdate(connection, position);
         }
 
-        const trackedOpenTrades = await Trade.find({ userId: connection.userId, exchange: connection.exchange, status: 'open' });
+        const sameExchangeConnections = await ExchangeConnection.countDocuments({
+            userId: connection.userId,
+            exchange: connection.exchange,
+            status: { $ne: 'disabled' }
+        });
+        const connectionScope = sameExchangeConnections === 1
+            ? { $or: [{ connectionId: connection._id }, { connectionId: { $exists: false } }] }
+            : { connectionId: connection._id };
+        const trackedOpenTrades = await Trade.find({
+            userId: connection.userId,
+            exchange: connection.exchange,
+            status: 'open',
+            ...connectionScope
+        });
         for (const trade of trackedOpenTrades) {
-            if (!openExternalIds.has(trade.externalId)) {
+            const sourceExternalId = trade.sourceExternalId || trade.externalId;
+            if (!openExternalIds.has(sourceExternalId)) {
                 await closePosition(connection, trade);
             }
         }
@@ -130,24 +195,38 @@ async function sweepConnection(connection) {
         await updateConnectionStatus(connection._id, 'connected', null);
         await updateLastSyncedAt(connection._id);
     } catch (err) {
+        if (/read-only permission|read permission/i.test(err.message)) {
+            stopConnectionSync(connection._id);
+        }
         await handleConnectionError(connection, err);
+        throw err;
     }
 }
 
-function startConnectionSync(connection) {
-    const adapter = getAdapter(connection.exchange);
-    if (!adapter.supportsRealtime) return;
+function sweepConnection(connection) {
+    return withConnectionLock(connection._id, () => sweepConnectionUnlocked(connection));
+}
 
-    const creds = decryptCreds(connection);
-    const handle = adapter.connectStream(creds, {
-        onPositionUpdate: (position) => {
-            handlePositionUpdate(connection, position).catch(err => console.error('Error handling position update:', err));
-        },
-        onError: (err) => {
-            handleConnectionError(connection, err).catch(console.error);
-        }
-    });
-    streamHandles.set(connection._id.toString(), handle);
+async function startConnectionSync(connection) {
+    try {
+        const adapter = getAdapter(connection.exchange);
+        if (!adapter.supportsRealtime) return;
+
+        const creds = decryptCreds(connection);
+        if (adapter.assertReadOnly) await adapter.assertReadOnly(creds);
+        const handle = adapter.connectStream(creds, {
+            onPositionUpdate: (position) => {
+                withConnectionLock(connection._id, () => handlePositionUpdate(connection, position))
+                    .catch(err => handleConnectionError(connection, err).catch(() => {}));
+            },
+            onError: (err) => {
+                handleConnectionError(connection, err).catch(() => {});
+            }
+        });
+        streamHandles.set(connection._id.toString(), handle);
+    } catch (error) {
+        handleConnectionError(connection, error).catch(() => {});
+    }
 }
 
 function stopConnectionSync(connectionId) {
@@ -176,7 +255,11 @@ async function sweepAllConnections() {
         for (const connection of connections) {
             const adapter = getAdapter(connection.exchange);
             if (!adapter.supportsRealtime || isSafetyNetTick) {
-                await sweepConnection(connection);
+                try {
+                    await sweepConnection(connection);
+                } catch {
+                    // Status is recorded by sweepConnection; continue other connections.
+                }
             }
         }
     } catch (err) {
@@ -203,5 +286,6 @@ module.exports = {
     loadActiveConnections,
     addConnectionToSync,
     removeConnectionFromSync,
-    syncConnectionNow: sweepConnection
+    syncConnectionNow: sweepConnection,
+    _test: { validatePosition, withConnectionLock, handlePositionUpdate }
 };

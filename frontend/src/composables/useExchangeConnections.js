@@ -83,5 +83,6 @@ export function useExchangeConnections() {
 		syncNow: syncNowMutation.mutate,
 		syncNowAsync: syncNowMutation.mutateAsync,
 		isSyncing: syncNowMutation.isPending,
+		syncError: syncNowMutation.error,
 	};
 }

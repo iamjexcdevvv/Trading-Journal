@@ -1,8 +1,9 @@
 // Every exchange adapter is a plain object implementing this contract:
 //   id, requiresPassphrase, supportsRealtime
+//   assertReadOnly(creds) -> throws if detectable write permissions are enabled (optional)
 //   testConnection(creds) -> throws if credentials are invalid
-//   getOpenPositions(creds) -> [{ externalId, symbol, direction, entryPrice, qty, leverage }]
-//   getFillsSince(creds, symbol, sinceMs) -> [{ price, qty, pnl, fee, time, side }]
+//   getOpenPositions(creds) -> [{ externalId, symbol, direction, entryPrice, qty, leverage, openedAt? }]
+//   getFillsSince(creds, symbol, sinceMs, externalId) -> [{ price, qty, pnl, fee, time, side }]
 //     side is 'Long' | 'Short' | null (null when the exchange doesn't distinguish, e.g. one-way mode)
 //   connectStream(creds, { onPositionUpdate, onError }) -> { stop() }   -- only if supportsRealtime
 //     onPositionUpdate receives one position at a time; qty === 0 means that position just closed.

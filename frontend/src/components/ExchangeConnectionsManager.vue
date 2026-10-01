@@ -11,6 +11,8 @@ const {
 	deleteConnectionAsync,
 	syncNowAsync,
 	isLoading,
+	isCreatingConnection,
+	syncError,
 } = useExchangeConnections();
 
 const EXCHANGES = [
@@ -125,13 +127,16 @@ const formatDate = (dateString) => {
 		</div>
 
 		<p class="font-mono text-[10px] text-text-muted/70 mb-4 leading-relaxed">
-			Open and closed futures trades sync into your journal automatically. Use a read-only,
-			no-withdraw API key for safety.
+			Open and closed futures trades sync into your journal automatically. Only connect a
+			read-only, no-trade, no-withdraw API key. OKX permissions are checked automatically.
 		</p>
 
 		<div v-if="!connections || connections.length === 0" class="text-text-muted/40 font-mono text-xs">
 			No exchanges connected
 		</div>
+		<p v-if="syncError" class="font-mono text-xs text-danger mb-2">
+			{{ syncError.message }}
+		</p>
 		<div v-else class="space-y-2">
 			<div
 				v-for="connection in connections"
@@ -239,9 +244,9 @@ const formatDate = (dateString) => {
 								API Key
 							</label>
 							<input
-								v-model="newApiKey"
-								type="text"
-								autocomplete="off"
+							v-model="newApiKey"
+							type="password"
+							autocomplete="new-password"
 								class="w-full bg-transparent border border-border px-3 py-2.5 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
 							/>
 						</div>
@@ -253,7 +258,7 @@ const formatDate = (dateString) => {
 							<input
 								v-model="newApiSecret"
 								type="password"
-								autocomplete="off"
+								autocomplete="new-password"
 								class="w-full bg-transparent border border-border px-3 py-2.5 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
 							/>
 						</div>
@@ -265,7 +270,7 @@ const formatDate = (dateString) => {
 							<input
 								v-model="newPassphrase"
 								type="password"
-								autocomplete="off"
+								autocomplete="new-password"
 								class="w-full bg-transparent border border-border px-3 py-2.5 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100"
 							/>
 						</div>
@@ -276,15 +281,15 @@ const formatDate = (dateString) => {
 
 						<button
 							type="submit"
-							:disabled="!isFormValid"
+							:disabled="!isFormValid || isCreatingConnection"
 							:class="[
 								'w-full py-3 font-heading font-bold text-sm tracking-widest uppercase transition-all duration-100',
-								isFormValid
+								isFormValid && !isCreatingConnection
 									? 'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px'
 									: 'bg-border text-text-muted cursor-not-allowed',
 							]"
 						>
-							Connect
+							{{ isCreatingConnection ? "Connecting..." : "Connect" }}
 						</button>
 					</form>
 				</div>

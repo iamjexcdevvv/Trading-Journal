@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { fetchJson } = require('./http');
 
 const BASE_URL = 'https://fapi.bitunix.com';
 
@@ -28,7 +29,7 @@ async function signedRequest(method, path, queryParams, body, creds) {
         ? '?' + new URLSearchParams(queryParams).toString()
         : '';
 
-    const response = await fetch(`${BASE_URL}${path}${query}`, {
+    const { response, data } = await fetchJson(`${BASE_URL}${path}${query}`, {
         method,
         headers: {
             'api-key': creds.apiKey,
@@ -39,8 +40,7 @@ async function signedRequest(method, path, queryParams, body, creds) {
             'Content-Type': 'application/json'
         },
         body: bodyStr || undefined
-    });
-    const data = await response.json();
+    }, 'Bitunix');
     if (!response.ok || (data.code !== undefined && data.code !== 0)) {
         throw new Error(data.msg || `Bitunix API error (${response.status})`);
     }
@@ -56,14 +56,36 @@ async function getOpenPositions(creds) {
     return (positions || []).map(p => ({
         externalId: p.positionId,
         symbol: p.symbol,
-        direction: p.side === 'LONG' ? 'Long' : 'Short',
+        direction: p.side === 'LONG' ? 'Long' : p.side === 'SHORT' ? 'Short' : null,
         entryPrice: parseFloat(p.avgOpenPrice) || 0,
         qty: parseFloat(p.qty),
-        leverage: parseInt(p.leverage, 10) || null
+        leverage: parseInt(p.leverage, 10) || null,
+        openedAt: Number(p.ctime) || undefined
     }));
 }
 
-async function getFillsSince(creds, symbol, sinceMs) {
+async function getFillsSince(creds, symbol, sinceMs, positionId) {
+    if (positionId) {
+        const result = await signedRequest('GET', '/api/v1/futures/position/get_history_positions', {
+            symbol,
+            positionId,
+            startTime: sinceMs,
+            limit: 100
+        }, null, creds);
+        const positions = result?.positionList;
+        if (!Array.isArray(positions)) throw new Error('Unexpected Bitunix position history response');
+        return positions
+            .filter(position => String(position.positionId) === String(positionId))
+            .map(position => ({
+                price: parseFloat(position.closePrice) || 0,
+                qty: parseFloat(position.maxQty) || 0,
+                pnl: parseFloat(position.realizedPNL) || 0,
+                fee: parseFloat(position.fee) || 0,
+                time: Number(position.mtime),
+                side: position.side === 'LONG' ? 'Long' : position.side === 'SHORT' ? 'Short' : null
+            }));
+    }
+
     const result = await signedRequest('GET', '/api/v1/futures/trade/get_history_trades', {
         symbol,
         startTime: sinceMs,

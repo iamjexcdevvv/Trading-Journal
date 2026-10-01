@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const mongoose = require('mongoose');
 const { getUserById } = require('../models/users');
 const {
     createConnection,
@@ -12,11 +13,24 @@ const { addConnectionToSync, removeConnectionFromSync, syncConnectionNow } = req
 
 const connectionSchema = Joi.object({
     exchange: Joi.string().valid(...supportedExchanges).required(),
-    label: Joi.string().required(),
-    apiKey: Joi.string().required(),
-    apiSecret: Joi.string().required(),
-    passphrase: Joi.string().when('exchange', { is: 'okx', then: Joi.required(), otherwise: Joi.optional() })
+    label: Joi.string().trim().min(1).max(80).required(),
+    apiKey: Joi.string().trim().min(1).max(512).required(),
+    apiSecret: Joi.string().trim().min(1).max(512).required(),
+    passphrase: Joi.string().trim().min(1).max(512).when('exchange', {
+        is: 'okx',
+        then: Joi.required(),
+        otherwise: Joi.forbidden()
+    })
 });
+
+function validId(id) {
+    return mongoose.isObjectIdOrHexString(id);
+}
+
+function safeCredentialError(error) {
+    if (/read-only permission|read permission/i.test(error.message)) return error.message;
+    return 'Credentials were rejected or the exchange could not be reached';
+}
 
 function sanitize(connection) {
     const { apiKeyEnc, apiSecretEnc, passphraseEnc, ...rest } = connection.toObject();
@@ -24,7 +38,7 @@ function sanitize(connection) {
 }
 
 async function createExchangeConnection(req, res) {
-    const { error } = connectionSchema.validate(req.body);
+    const { error, value } = connectionSchema.validate(req.body);
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
     }
@@ -35,13 +49,13 @@ async function createExchangeConnection(req, res) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
-    const { exchange, label, apiKey, apiSecret, passphrase } = req.body;
+    const { exchange, label, apiKey, apiSecret, passphrase } = value;
     const adapter = getAdapter(exchange);
 
     try {
         await adapter.testConnection({ apiKey, apiSecret, passphrase });
     } catch (err) {
-        return res.status(400).json({ error: `Could not verify ${exchange} credentials: ${err.message}` });
+        return res.status(400).json({ error: `Could not verify ${exchange} credentials: ${safeCredentialError(err)}` });
     }
 
     const connection = await createConnection({
@@ -70,13 +84,15 @@ async function getExchangeConnections(req, res) {
 }
 
 async function deleteExchangeConnection(req, res) {
+    const { id } = req.params;
+    if (!validId(id)) return res.status(400).json({ error: 'Invalid connection ID' });
+
     const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
     if (!user || !user.refreshToken) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
-    const { id } = req.params;
     const connection = await getConnectionById(id, user._id);
     if (!connection) {
         return res.status(404).json({ error: 'Connection not found' });
@@ -89,13 +105,15 @@ async function deleteExchangeConnection(req, res) {
 }
 
 async function syncExchangeConnectionNow(req, res) {
+    const { id } = req.params;
+    if (!validId(id)) return res.status(400).json({ error: 'Invalid connection ID' });
+
     const decodedUser = req.user;
     const user = await getUserById(decodedUser._id);
     if (!user || !user.refreshToken) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
-    const { id } = req.params;
     const connection = await getConnectionById(id, user._id);
     if (!connection) {
         return res.status(404).json({ error: 'Connection not found' });
@@ -105,7 +123,7 @@ async function syncExchangeConnectionNow(req, res) {
         await syncConnectionNow(connection);
         return res.status(200).json({ message: 'Sync complete' });
     } catch (err) {
-        return res.status(500).json({ error: err.message });
+        return res.status(502).json({ error: 'Exchange synchronization failed; connection marked as error' });
     }
 }
 

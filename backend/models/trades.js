@@ -16,6 +16,8 @@ const tradeSchema = new mongoose.Schema({
     screenshot: String,
     tags: [String],
     exchange: { type: String, enum: ['manual', 'binance', 'okx', 'bitunix'], default: 'manual' },
+    connectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'ExchangeConnection' },
+    sourceExternalId: String,
     externalId: String,
     status: { type: String, enum: ['open', 'closed'], default: 'closed' },
     entryPrice: Number,
@@ -61,12 +63,22 @@ async function updateTradeById(id, userId, tradeData) {
     return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: tradeData }, { returnDocument: 'after', runValidators: true });
 }
 
-async function findSyncedTrade(userId, exchange, externalId) {
-    return await Trade.findOne({ userId, exchange, externalId });
+async function findSyncedTrade(userId, connectionId, exchange, sourceExternalId, allowLegacy = false) {
+    const scoped = await Trade.findOne({ userId, connectionId, exchange, sourceExternalId, status: 'open' });
+    if (scoped || !allowLegacy) return scoped;
+
+    // Compatibility path for records created before connections were isolated.
+    return await Trade.findOne({
+        userId,
+        exchange,
+        externalId: sourceExternalId,
+        status: 'open',
+        connectionId: { $exists: false }
+    });
 }
 
 async function closeSyncedTrade(id, userId, closeData) {
-    return await Trade.findOneAndUpdate({ _id: id, userId }, { $set: { status: 'closed', ...closeData } }, { returnDocument: 'after' });
+    return await Trade.findOneAndUpdate({ _id: id, userId, status: 'open' }, { $set: { status: 'closed', ...closeData } }, { returnDocument: 'after' });
 }
 
 module.exports = {

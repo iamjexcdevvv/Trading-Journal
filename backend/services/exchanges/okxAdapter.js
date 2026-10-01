@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const { fetchJson } = require('./http');
 
-const BASE_URL = 'https://www.okx.com';
-const WS_URL = 'wss://ws.okx.com:8443/ws/v5/private';
+const BASE_URL = 'https://openapi.okx.com';
+const WS_URL = 'wss://ws.okx.com/ws/v5/private';
 const PING_INTERVAL_MS = 20000;
 const RECONNECT_DELAY_MS = 5000;
 
@@ -15,7 +16,7 @@ async function signedRequest(method, path, params, creds) {
     const timestamp = new Date().toISOString();
     const signature = sign(`${timestamp}${method}${path}${query}`, creds.apiSecret);
 
-    const response = await fetch(`${BASE_URL}${path}${query}`, {
+    const { response, data } = await fetchJson(`${BASE_URL}${path}${query}`, {
         method,
         headers: {
             'OK-ACCESS-KEY': creds.apiKey,
@@ -24,8 +25,7 @@ async function signedRequest(method, path, params, creds) {
             'OK-ACCESS-PASSPHRASE': creds.passphrase,
             'Content-Type': 'application/json'
         }
-    });
-    const data = await response.json();
+    }, 'OKX');
     if (!response.ok || data.code !== '0') {
         throw new Error(data.msg || `OKX API error (${response.status})`);
     }
@@ -40,11 +40,22 @@ function normalizePosition(p) {
         direction: p.posSide === 'long' || (p.posSide === 'net' && pos >= 0) ? 'Long' : 'Short',
         entryPrice: parseFloat(p.avgPx) || 0,
         qty: Math.abs(pos),
-        leverage: parseFloat(p.lever) || null
+        leverage: parseFloat(p.lever) || null,
+        openedAt: Number(p.cTime) || undefined
     };
 }
 
+async function assertReadOnly(creds) {
+    const [config] = await signedRequest('GET', '/api/v5/account/config', {}, creds);
+    const permissions = new Set(String(config?.perm || '').split(',').filter(Boolean));
+    if (permissions.has('trade') || permissions.has('withdraw')) {
+        throw new Error('API key must have read-only permission');
+    }
+    if (!permissions.has('read_only')) throw new Error('API key does not have read permission');
+}
+
 async function testConnection(creds) {
+    await assertReadOnly(creds);
     await signedRequest('GET', '/api/v5/account/positions', { instType: 'SWAP' }, creds);
 }
 
@@ -53,13 +64,14 @@ async function getOpenPositions(creds) {
     return positions.filter(p => parseFloat(p.pos) !== 0).map(normalizePosition);
 }
 
-async function getFillsSince(creds, symbol, sinceMs) {
+async function getFillsSince(creds, symbol, sinceMs, positionId) {
     const records = await signedRequest('GET', '/api/v5/account/positions-history', {
         instType: 'SWAP',
-        instId: symbol
+        instId: symbol,
+        ...(positionId ? { posId: positionId } : {})
     }, creds);
     return records
-        .filter(r => Number(r.uTime) >= sinceMs)
+        .filter(r => Number(r.uTime) >= sinceMs && (!positionId || String(r.posId) === String(positionId)))
         .map(r => ({
             price: parseFloat(r.closeAvgPx),
             qty: parseFloat(r.closeTotalPos),
@@ -86,7 +98,7 @@ function connectStream(creds, { onPositionUpdate, onError }) {
     }
 
     function connect() {
-        ws = new WebSocket(WS_URL);
+        ws = new WebSocket(WS_URL, { handshakeTimeout: 10_000, maxPayload: 64 * 1024 });
 
         ws.on('open', () => login());
 
@@ -95,13 +107,19 @@ function connectStream(creds, { onPositionUpdate, onError }) {
             if (text === 'pong') return;
             try {
                 const msg = JSON.parse(text);
-                if (msg.event === 'login' && msg.code === '0') {
-                    ws.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'positions', instType: 'SWAP' }] }));
-                    pingTimer = setInterval(() => {
-                        if (ws.readyState === WebSocket.OPEN) ws.send('ping');
-                    }, PING_INTERVAL_MS);
+                if (msg.event === 'login') {
+                    if (msg.code === '0') {
+                        ws.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'positions', instType: 'SWAP' }] }));
+                        pingTimer = setInterval(() => {
+                            if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+                        }, PING_INTERVAL_MS);
+                    } else {
+                        onError(new Error(msg.msg || 'OKX WS login failed'));
+                        ws.close();
+                    }
                 } else if (msg.event === 'error') {
                     onError(new Error(msg.msg || 'OKX WS error'));
+                    ws.close();
                 } else if (msg.arg?.channel === 'positions' && Array.isArray(msg.data)) {
                     msg.data.forEach(p => onPositionUpdate(normalizePosition(p)));
                 }
@@ -134,6 +152,7 @@ module.exports = {
     id: 'okx',
     requiresPassphrase: true,
     supportsRealtime: true,
+    assertReadOnly,
     testConnection,
     getOpenPositions,
     getFillsSince,
