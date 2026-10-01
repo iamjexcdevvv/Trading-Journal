@@ -9,6 +9,7 @@ import { useAuth } from "./composables/useAuth.js";
 import { useTrades } from "./composables/useTrades.js";
 import { useSocket } from "./composables/useSocket.js";
 import { useQueryClient } from "@tanstack/vue-query";
+import { apiBaseUrl } from "./config/urls.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -22,7 +23,7 @@ const pageTitle = computed(() => route.meta.title || "Dashboard");
 
 async function handleLogout() {
 	try {
-		await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+		await fetch(`${apiBaseUrl}/api/auth/logout`, { method: "POST", credentials: "include" });
 	} catch (error) {
 		console.error("Logout error:", error);
 	} finally {

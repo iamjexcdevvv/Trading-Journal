@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { apiBaseUrl } from "../config/urls.js";
 
-const apiURL = import.meta.env.VITE_API_BASE_URL;
+const apiURL = apiBaseUrl;
 
 const router = useRouter();
 const email = ref("");

@@ -25,6 +25,11 @@ const authRateLimiter = rateLimit({
       message: { error: 'Too many auth attempts, please try again later.' }
 })
 
+router.use((req, res, next) => {
+      res.set('Cache-Control', 'private, no-store');
+      next();
+});
+
 router.post('/register', authRateLimiter, registerUser)
 router.post('/login', authRateLimiter, loginUser)
 router.post('/refresh', refreshToken)

@@ -1,8 +1,9 @@
 import { computed } from 'vue';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import apiFetch from '../utils/api';
+import { apiBaseUrl } from '../config/urls.js';
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 
 export function useTags() {
 	const queryClient = useQueryClient();

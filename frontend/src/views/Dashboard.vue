@@ -7,6 +7,7 @@ import { useAuth } from "../composables/useAuth.js";
 import { useTrades } from "../composables/useTrades.js";
 import { useDashboardRange } from "../composables/useDashboardRange.js";
 import apiFetch from "../utils/api.js";
+import { apiBaseUrl } from "../config/urls.js";
 
 const router = useRouter();
 const { isLoggedIn, user } = useAuth();
@@ -17,7 +18,7 @@ const calendarCursor = ref(endDate.value ? new Date(`${endDate.value}T00:00:00`)
 const currentTime = ref(new Date());
 let clockTimer;
 const ranges = ["1W", "1M", "3M", "YTD", "ALL"];
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 const greeting = computed(() => {
 	const hour = currentTime.value.getHours();
 	if (hour < 12) return "Good morning";

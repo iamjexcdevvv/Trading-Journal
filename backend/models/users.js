@@ -6,6 +6,13 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: false, trim: true, minlength: 3 },
     hashedPassword: {type: String, required: false},
     refreshToken: {type: String},
+    refreshSessions: [{
+        sessionId: { type: String, required: true },
+        tokenHash: { type: String, required: true },
+        createdAt: { type: Date, required: true },
+        expiresAt: { type: Date, required: true },
+        _id: false
+    }],
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     approvalStatus: { type: String, enum: ['pending', 'approved'] },
     approvedAt: Date,

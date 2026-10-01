@@ -34,14 +34,39 @@ const oauthCodeSchema = Joi.object({
     code: Joi.string().pattern(/^[A-Za-z0-9_-]{43}$/).required()
 });
 
-async function establishSession(user, res, message) {
-    const newRefreshToken = generateJWTToken({_id: user._id}, '7d');
-    const accessToken = generateJWTToken(accessTokenPayload(user));
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_REFRESH_SESSIONS = 10;
 
-    user.refreshToken = await bcrypt.hash(newRefreshToken, 10);
+function activeRefreshSessions(user, now = new Date()) {
+    return (user.refreshSessions || [])
+        .filter(session => session?.expiresAt && new Date(session.expiresAt) > now)
+        .slice(-MAX_REFRESH_SESSIONS);
+}
+
+async function createSession(user) {
+    const sessionId = crypto.randomUUID();
+    const refreshToken = generateJWTToken({ _id: user._id, sid: sessionId }, '7d');
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    const now = new Date();
+    user.refreshSessions = [
+        ...activeRefreshSessions(user, now),
+        { sessionId, tokenHash, createdAt: now, expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS) }
+    ].slice(-MAX_REFRESH_SESSIONS);
+
+    // Compatibility marker for older application instances during rollout.
+    user.refreshToken = tokenHash;
     await user.save();
+    return { sessionId, refreshToken };
+}
 
-    res.cookie('refreshToken', newRefreshToken, refreshCookieOptions());
+function issueAccessToken(user, sessionId) {
+    return generateJWTToken({ ...accessTokenPayload(user), sid: sessionId });
+}
+
+async function establishSession(user, res, message) {
+    const { sessionId, refreshToken } = await createSession(user);
+    const accessToken = issueAccessToken(user, sessionId);
+    res.cookie('refreshToken', refreshToken, refreshCookieOptions());
     return res.status(200).json({ message, accessToken });
 }
 
@@ -116,7 +141,7 @@ async function refreshToken(req, res) {
 
     const user = await getUserById(decodedUser._id);
 
-    if (!user || !user.refreshToken) {
+    if (!user) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
@@ -124,20 +149,32 @@ async function refreshToken(req, res) {
         return res.status(403).json({ error: 'Account awaiting administrator approval', code: 'APPROVAL_PENDING' });
     }
 
-    const isValid = await bcrypt.compare(userRefreshToken, user.refreshToken);
+    if (decodedUser.sid) {
+        const session = activeRefreshSessions(user).find(item => item.sessionId === decodedUser.sid);
+        if (!session || !(await bcrypt.compare(userRefreshToken, session.tokenHash))) {
+            return res.status(401).json({ error: 'Invalid refresh token' });
+        }
 
-    if (!isValid) {
+        user.refreshSessions = activeRefreshSessions(user);
+        const accessToken = issueAccessToken(user, decodedUser.sid);
+        res.cookie('refreshToken', userRefreshToken, refreshCookieOptions());
+        return res.status(200).json({ message: 'Token refreshed successfully', accessToken });
+    }
+
+    if (!user.refreshToken || !(await bcrypt.compare(userRefreshToken, user.refreshToken))) {
         return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
+    // Convert one legacy session without invalidating it before the response succeeds.
     return establishSession(user, res, 'Token refreshed successfully');
 }
 
 async function logoutUser(req, res) {
     const userRefreshToken = req.cookies.refreshToken;
+    res.clearCookie('refreshToken', refreshCookieClearOptions());
 
     if (!userRefreshToken) {
-        return res.status(401).json({ error: 'No refresh token provided' });
+        return res.status(200).json({ message: 'Logout successful' });
     }
 
     let decodedUser;
@@ -145,19 +182,24 @@ async function logoutUser(req, res) {
         decodedUser = jwt.verify(userRefreshToken, process.env.JWT_SECRET);
     }
     catch (err) {
-        return res.status(401).json({ error: 'Invalid refresh token' });
+        return res.status(200).json({ message: 'Logout successful' });
     }
 
     const user = await getUserById(decodedUser._id);
 
-    if (!user || !user.refreshToken) {
-        return res.status(401).json({ error: 'Invalid refresh token' });
+    if (!user) {
+        return res.status(200).json({ message: 'Logout successful' });
     }
 
-    user.refreshToken = null;
+    if (decodedUser.sid) {
+        user.refreshSessions = activeRefreshSessions(user)
+            .filter(session => session.sessionId !== decodedUser.sid);
+        if (user.refreshSessions.length === 0) user.refreshToken = null;
+    } else {
+        user.refreshToken = null;
+        user.refreshSessions = [];
+    }
     await user.save();
-
-    res.clearCookie('refreshToken', refreshCookieClearOptions());
 
     return res.status(200).json({ message: 'Logout successful' });
 }

@@ -2,11 +2,12 @@
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "../composables/useAuth.js";
+import { apiBaseUrl } from "../config/urls.js";
 
 const router = useRouter();
 const route = useRoute();
 const { setToken } = useAuth();
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 
 const error = ref("");
 const isLoading = ref(true);

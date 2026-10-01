@@ -16,6 +16,7 @@ const { initPriceFeedService } = require('./services/priceFeedService');
 const { configureSockets } = require('./services/socketService');
 
 class StartupError extends Error {}
+const GLOBAL_RATE_LIMIT_MAX = 1000;
 
 function createLogger(config) {
     return winston.createLogger({
@@ -31,7 +32,7 @@ function createLogger(config) {
 function createGlobalRateLimiter(config) {
     return rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 100,
+        max: GLOBAL_RATE_LIMIT_MAX,
         standardHeaders: 'draft-8',
         legacyHeaders: false,
         ipv6Subnet: 56,
@@ -143,4 +144,4 @@ async function start({
     return runtime;
 }
 
-module.exports = { StartupError, createRuntime, installProcessHandlers, start };
+module.exports = { StartupError, GLOBAL_RATE_LIMIT_MAX, createRuntime, installProcessHandlers, start };

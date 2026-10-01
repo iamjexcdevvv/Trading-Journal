@@ -2,8 +2,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { Check, Clock3, UserCheck } from "lucide-vue-next";
 import apiFetch from "../utils/api.js";
+import { apiBaseUrl } from "../config/urls.js";
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 const queryClient = useQueryClient();
 const { data: pendingUsers, isLoading, isError } = useQuery({
 	queryKey: ["admin-approvals"],

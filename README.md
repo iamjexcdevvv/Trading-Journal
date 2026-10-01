@@ -111,8 +111,10 @@ VITE_API_BASE_URL=http://localhost:3000
 Create a `.env.production` file:
 
 ```env
-VITE_API_BASE_URL=https://your-backend-url.com
+VITE_SOCKET_URL=https://your-backend-url.com
 ```
+
+Production REST requests use the frontend origin and Vercel proxies `/api/*` to the backend.
 
 ### 4. Google OAuth Setup
 
@@ -123,7 +125,7 @@ VITE_API_BASE_URL=https://your-backend-url.com
 5. Select "Web application"
 6. Add authorized redirect URIs:
    - Development: `http://localhost:3000/api/auth/google/callback`
-   - Production: `https://your-backend-url.com/api/auth/google/callback`
+   - Production: `https://your-frontend-url.com/api/auth/google/callback`
 7. Copy the Client ID and Client Secret to your environment variables
 
 ## Running the Application
@@ -263,13 +265,14 @@ vue-project/
 ### Backend (.env.development / .env.production)
 - `MONGODB_URI` - MongoDB connection string
 - `JWT_SECRET` - Secret key for JWT token generation
-- `BACKEND_URL` - Backend URL for OAuth callbacks
+- `BACKEND_URL` - Backend URL used by local OAuth callbacks
 - `FRONTEND_URL` - Frontend URL for OAuth redirects
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
 
 ### Frontend (.env.development / .env.production)
-- `VITE_API_BASE_URL` - Backend API URL
+- `VITE_API_BASE_URL` - Local development API URL
+- `VITE_SOCKET_URL` - Direct backend URL for production Socket.IO connections
 
 ## Deployment
 

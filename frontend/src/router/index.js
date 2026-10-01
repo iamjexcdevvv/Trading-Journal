@@ -11,6 +11,7 @@ import OAuthCallback from "../views/OAuthCallback.vue";
 import Dashboard from "../views/Dashboard.vue";
 import AdminApprovals from "../views/AdminApprovals.vue";
 import { useAuth } from "../composables/useAuth.js";
+import { refreshToken } from "../utils/api.js";
 
 const routes = [
 	{
@@ -92,22 +93,12 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
-	const { isLoggedIn, setToken, startAuthCheck } = useAuth();
-	const apiURL = import.meta.env.VITE_API_BASE_URL;
-
+	const { isLoggedIn, startAuthCheck } = useAuth();
 	// Protected routes - require authentication
 	if (to.meta.requiresAuth && !isLoggedIn.value) {
 		startAuthCheck();
 		try {
-			const res = await fetch(`${apiURL}/api/auth/refresh`, {
-				method: "POST",
-				credentials: "include",
-			});
-
-			if (res.ok) {
-				const { accessToken } = await res.json();
-				setToken(accessToken);
-			} else {
+			if (!(await refreshToken())) {
 				next("/login");
 				return;
 			}

@@ -11,6 +11,7 @@ import { useAuth } from "../composables/useAuth.js";
 import { useTags } from "../composables/useTags.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import  apiFetch  from "../utils/api.js";
+import { apiBaseUrl } from "../config/urls.js";
 
 const { isLoggedIn, token } = useAuth();
 const queryClient = useQueryClient();
@@ -23,7 +24,7 @@ const lastAddedId = ref(null);
 const isModalOpen = ref(route.query.autoOpen === "true");
 const selectedFilterTags = ref([]);
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 
 const filteredTrades = computed(() => {
 	if (selectedFilterTags.value.length === 0) return trades.value;

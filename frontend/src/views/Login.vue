@@ -2,8 +2,9 @@
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuth } from "../composables/useAuth.js";
+import { apiBaseUrl } from "../config/urls.js";
 
-const apiURL = import.meta.env.VITE_API_BASE_URL;
+const apiURL = apiBaseUrl;
 
 const router = useRouter();
 const route = useRoute();

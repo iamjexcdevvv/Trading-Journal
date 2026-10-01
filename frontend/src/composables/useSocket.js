@@ -1,8 +1,9 @@
 import { io } from "socket.io-client";
 import { watch } from "vue";
 import { useAuth } from "./useAuth.js";
+import { socketUrl } from "../config/urls.js";
 
-const socket = io(import.meta.env.VITE_API_BASE_URL, { autoConnect: false });
+const socket = io(socketUrl, { autoConnect: false });
 let authenticationInitialized = false;
 
 export function useSocket() {

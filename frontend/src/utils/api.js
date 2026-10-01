@@ -1,34 +1,46 @@
 import { useAuth } from "@/composables/useAuth"
+import { apiBaseUrl } from "@/config/urls.js";
 
 const { token, setToken } = useAuth();
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
+let refreshPromise = null;
 
-const refreshToken = async () => {
-    try {
+export const refreshToken = async () => {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+      try {
         const res = await fetch(`${apiUrl}/api/auth/refresh`, {
-            method: "POST",
-            credentials: "include",
+          method: "POST",
+          credentials: "include",
         });
 
         if (!res.ok) return false;
 
         const { accessToken } = await res.json();
+        if (!accessToken) return false;
         setToken(accessToken);
-    }
-    catch (error) {
+      } catch (error) {
         console.error("Token refresh failed:", error);
         return false;
-    }
+      }
 
-    return true;
-}
+      return true;
+    })();
+
+    try {
+      return await refreshPromise;
+    } finally {
+      refreshPromise = null;
+    }
+};
 
 const apiFetch = async (url, options = {}, retry = true) => {
   const response = await fetch(`${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token.value}` }), // attach token
+      ...(token.value && { Authorization: `Bearer ${token.value}` }),
       ...options.headers,
     },
   })

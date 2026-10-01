@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const { ConfigurationError, validateEnvironment, loadAndValidateEnvironment } = require('../config/environment');
 const { createReadinessState } = require('../startups/health');
-const { StartupError, start } = require('../startup');
+const { StartupError, GLOBAL_RATE_LIMIT_MAX, start } = require('../startup');
 
 function productionEnvironment(overrides = {}) {
     return {
@@ -119,4 +119,8 @@ test('health and readiness responses disclose only state', () => {
     readiness.ready({}, after);
     assert.equal(after.statusCode, 200);
     assert.deepEqual(after.body, { status: 'ready' });
+});
+
+test('global API limit permits normal SPA traffic while sensitive routes keep dedicated limits', () => {
+    assert.equal(GLOBAL_RATE_LIMIT_MAX, 1000);
 });

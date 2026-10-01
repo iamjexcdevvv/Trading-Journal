@@ -7,14 +7,14 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 import tailwindcss from '@tailwindcss/vite'
 
-function requireProductionApiUrl(value) {
-  if (!value) throw new Error('VITE_API_BASE_URL is required for production builds')
+function requireProductionSocketUrl(value) {
+  if (!value) throw new Error('VITE_SOCKET_URL is required for production builds')
 
   let url
   try {
     url = new URL(value)
   } catch {
-    throw new Error('VITE_API_BASE_URL must be a valid absolute URL')
+    throw new Error('VITE_SOCKET_URL must be a valid absolute URL')
   }
 
   const hostname = url.hostname.toLowerCase()
@@ -26,11 +26,11 @@ function requireProductionApiUrl(value) {
     || hostname === '::1'
     || hostname === '[::1]'
     || hostname.startsWith('127.')
-  if (url.protocol !== 'https:') throw new Error('VITE_API_BASE_URL must use HTTPS for production builds')
+  if (url.protocol !== 'https:') throw new Error('VITE_SOCKET_URL must use HTTPS for production builds')
   if (isLocal) {
-    throw new Error('VITE_API_BASE_URL must not use a local address for production builds')
+    throw new Error('VITE_SOCKET_URL must not use a local address for production builds')
   }
-  if (url.username || url.password) throw new Error('VITE_API_BASE_URL must not contain credentials')
+  if (url.username || url.password) throw new Error('VITE_SOCKET_URL must not contain credentials')
 
   return url.origin
 }
@@ -39,7 +39,12 @@ function requireProductionApiUrl(value) {
 export default defineConfig(({ command, mode }) => {
   if (command === 'build') {
     const env = loadEnv(mode, process.cwd(), 'VITE_')
-    requireProductionApiUrl(process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL)
+    requireProductionSocketUrl(
+      process.env.VITE_SOCKET_URL
+        || env.VITE_SOCKET_URL
+        || process.env.VITE_API_BASE_URL
+        || env.VITE_API_BASE_URL
+    )
   }
 
   return {

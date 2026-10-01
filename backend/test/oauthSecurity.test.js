@@ -14,6 +14,7 @@ const {
 } = require('../models/oauthArtifacts');
 const {
     loginUser,
+    refreshToken,
     logoutUser,
     googleAuth,
     exchangeOAuthCode,
@@ -220,4 +221,60 @@ test('logout clears refresh cookie with matching attributes', async (t) => {
         name: 'refreshToken',
         options: { httpOnly: true, secure: true, sameSite: 'none', path: '/api/auth' }
     });
+});
+
+test('refresh sessions survive repeated refreshes and separate device logins', async (t) => {
+    const originalFindOne = User.findOne;
+    const originalFindById = User.findById;
+    t.after(() => {
+        User.findOne = originalFindOne;
+        User.findById = originalFindById;
+    });
+
+    const user = approvedUser();
+    user.hashedPassword = await bcrypt.hash('correct password', 4);
+    User.findOne = async () => user;
+    User.findById = async () => user;
+
+    const firstLogin = response();
+    const secondLogin = response();
+    const request = { body: { username: user.username, password: 'correct password' } };
+    await loginUser(request, firstLogin);
+    await loginUser(request, secondLogin);
+
+    const firstToken = firstLogin.cookies.find(cookie => cookie.name === 'refreshToken').value;
+    const secondToken = secondLogin.cookies.find(cookie => cookie.name === 'refreshToken').value;
+    assert.notEqual(firstToken, secondToken);
+    assert.equal(user.refreshSessions.length, 2);
+
+    const firstRefresh = response();
+    const repeatedRefresh = response();
+    await refreshToken({ cookies: { refreshToken: firstToken } }, firstRefresh);
+    await refreshToken({ cookies: { refreshToken: firstToken } }, repeatedRefresh);
+    assert.equal(firstRefresh.statusCode, 200);
+    assert.equal(repeatedRefresh.statusCode, 200);
+    assert.equal(user.refreshSessions.length, 2);
+
+    await logoutUser({ cookies: { refreshToken: firstToken } }, response());
+    assert.equal(user.refreshSessions.length, 1);
+
+    const secondRefresh = response();
+    await refreshToken({ cookies: { refreshToken: secondToken } }, secondRefresh);
+    assert.equal(secondRefresh.statusCode, 200);
+});
+
+test('legacy refresh token upgrades to a session without forced login', async (t) => {
+    const originalFindById = User.findById;
+    t.after(() => { User.findById = originalFindById; });
+    const user = approvedUser();
+    const legacyToken = require('../utils/token')({ _id: user._id }, '7d');
+    user.refreshToken = await bcrypt.hash(legacyToken, 4);
+    User.findById = async () => user;
+
+    const res = response();
+    await refreshToken({ cookies: { refreshToken: legacyToken } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.ok(res.body.accessToken);
+    assert.equal(user.refreshSessions.length, 1);
+    assert.ok(res.cookies.find(cookie => cookie.name === 'refreshToken'));
 });

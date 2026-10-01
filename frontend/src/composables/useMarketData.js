@@ -2,8 +2,9 @@ import { ref, computed, onUnmounted } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import apiFetch from "../utils/api";
 import { useSocket } from "./useSocket.js";
+import { apiBaseUrl } from "../config/urls.js";
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = apiBaseUrl;
 
 // exchange: a ref/computed holding one of 'binance' | 'bybit' | 'bitunix'
 export function useExchangeSymbols(exchange) {
