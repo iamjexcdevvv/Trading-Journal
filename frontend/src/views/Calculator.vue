@@ -5,7 +5,6 @@ import {
 	ArrowUpRight,
 	ArrowDownRight,
 	Calculator,
-	ShieldAlert,
 	Check,
 	DollarSign,
 	Percent,
@@ -38,7 +37,7 @@ const entryPrice = ref(100);
 const stopPrice = ref(98);
 
 // Margin state
-const marginAllocated = ref(50);
+const marginAllocated = ref(100);
 
 // Take profit state
 const tpType = ref("rr"); // 'rr' | 'price'
@@ -135,44 +134,9 @@ const positionSizeUnits = computed(() => {
 	return Number((positionSizeUsd.value / entryPrice.value).toFixed(4));
 });
 
-const recommendedLeverage = computed(() => {
+const requiredLeverage = computed(() => {
 	if (marginAllocated.value <= 0 || positionSizeUsd.value <= 0) return 0;
 	return Number((positionSizeUsd.value / marginAllocated.value).toFixed(1));
-});
-
-const maxLeverage = computed(() => {
-	const sl = computedSlPercent.value;
-	if (sl <= 0) return 0;
-	return Number((100 / sl).toFixed(1));
-});
-
-// Risk Level assessment
-const riskLevel = computed(() => {
-	const lev = recommendedLeverage.value;
-	const maxLev = maxLeverage.value;
-	if (lev <= 0 || maxLev <= 0)
-		return { label: "N/A", class: "text-text-muted bg-surface border-border" };
-	if (lev > maxLev) {
-		return {
-			label: "LIQUIDATION RISK",
-			description:
-				"Leverage exceeds maximum safety threshold. You will be liquidated before hitting Stop Loss!",
-			class: "text-danger bg-danger/10 border-danger/30",
-		};
-	} else if (lev > maxLev * 0.7) {
-		return {
-			label: "HIGH RISK",
-			description:
-				"High leverage. Small price deviations or wick spikes can liquidate this position early.",
-			class: "text-warning bg-warning/10 border-warning/30",
-		};
-	} else {
-		return {
-			label: "SAFE",
-			description: "Leverage is within safe limits relative to stop loss.",
-			class: "text-success bg-success/10 border-success/30",
-		};
-	}
 });
 
 const expectedProfitUsd = computed(() => {
@@ -277,7 +241,7 @@ const logTrade = () => {
 Capital: $${capital.value} | Risk: $${riskAmount.value} (${riskPercent.value}%)
 Entry: $${entryPrice.value} | SL: $${stopLossType.value === "price" ? stopPrice.value : stopLossPercent.value + "%"} (${computedSlPercent.value.toFixed(2)}%)
 Position Size: $${positionSizeUsd.value} (${positionSizeUnits.value} units)
-Leverage: ${recommendedLeverage.value}x | Margin: $${marginAllocated.value}
+Required Leverage: ${requiredLeverage.value}x | Margin: $${marginAllocated.value}
 Target TP: $${computedTpPrice.value} (${computedRrRatio.value.toFixed(1)}R)
 Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 
@@ -305,10 +269,10 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 		>
 			<div class="flex items-center gap-3">
 				<span class="font-heading font-black text-sm tracking-widest uppercase">
-					Position Calculator
+					Value at Risk Calculator
 				</span>
 				<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
-					// Leverage & Sizing Planner
+					// Risk-Based Position Sizing
 				</span>
 			</div>
 		</div>
@@ -389,7 +353,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 						<label
 							for="calc-capital"
 							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Account Capital</label
+							>Account Balance</label
 						>
 						<div class="relative">
 							<DollarSign
@@ -587,8 +551,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 							/>
 						</div>
 						<span class="text-[10px] text-text-muted leading-tight"
-							>The actual money committed to the trade. Determines recommended
-							leverage.</span
+							>Money committed as margin. Used to calculate required leverage.</span
 						>
 					</div>
 
@@ -891,50 +854,35 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 						>
 					</div>
 
-					<!-- Leverage & Sizing Summary Grid -->
+					<!-- Value at Risk Summary -->
 					<div class="flex flex-col gap-4">
-						<!-- Leverage -->
+						<!-- Value at Risk -->
 						<div
 							class="bg-background/45 p-4 border border-border/60 rounded-md text-center"
 						>
 							<p
 								class="font-mono text-[10px] text-text-muted uppercase tracking-wider"
 							>
-								Recommended Leverage
+								Value at Risk
 							</p>
 							<p
 								class="text-4xl font-heading font-black tracking-tight text-text-main mt-1.5"
 							>
-								{{ recommendedLeverage
-								}}<span class="text-primary text-2xl font-mono">x</span>
+								<span class="text-primary text-2xl font-mono">$</span
+								>{{ riskAmount.toLocaleString() }}
 							</p>
 							<p class="text-[10px] text-text-muted mt-1 leading-normal font-mono">
-								Position Size: ${{ positionSizeUsd.toLocaleString() }}
-								<span v-if="entryPrice > 0">
-									({{ positionSizeUnits.toLocaleString() }} units)</span
-								>
+								Account Balance × Risk Percentage
 							</p>
 						</div>
 
-						<!-- Stop Loss Value & Risk Warning -->
+						<!-- Formula Breakdown -->
 						<div
-							:class="[
-								'p-3 border rounded-md font-mono text-xs flex flex-col gap-1 transition-colors duration-150',
-								riskLevel.class,
-							]"
+							class="p-3 border border-border/60 rounded-md font-mono text-xs flex flex-col gap-1"
 						>
-							<div
-								class="flex items-center gap-1.5 font-bold uppercase tracking-wider"
-							>
-								<ShieldAlert v-if="recommendedLeverage > maxLeverage" :size="14" />
-								<span>Risk Level :: {{ riskLevel.label }}</span>
+							<div class="font-bold uppercase tracking-wider text-primary">
+								Position Sizing Breakdown
 							</div>
-							<p
-								v-if="riskLevel.description"
-								class="text-[11px] leading-tight text-text-main/80 font-sans mt-0.5"
-							>
-								{{ riskLevel.description }}
-							</p>
 							<div
 								class="text-[10px] text-text-muted flex items-center justify-between border-t border-current/20 mt-1.5 pt-1.5"
 							>
@@ -946,8 +894,18 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 							<div
 								class="text-[10px] text-text-muted flex items-center justify-between"
 							>
-								<span>Max Safe Leverage</span>
-								<span class="font-bold font-mono">{{ maxLeverage }}x</span>
+								<span>Maximum Position Size</span>
+								<span class="font-bold font-mono"
+									>${{ positionSizeUsd.toLocaleString() }}</span
+								>
+							</div>
+							<div
+								class="text-[10px] text-text-muted flex items-center justify-between"
+							>
+								<span>Required Leverage</span>
+								<span class="font-bold font-mono text-primary"
+									>{{ requiredLeverage }}x</span
+								>
 							</div>
 						</div>
 
@@ -1072,10 +1030,10 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 					<button
 						type="button"
 						@click="logTrade"
-						:disabled="computedSlPercent <= 0 || recommendedLeverage <= 0"
+						:disabled="computedSlPercent <= 0 || requiredLeverage <= 0"
 						:class="[
 							'w-full py-3.5 font-heading font-bold text-xs tracking-widest uppercase transition-all duration-100 flex items-center justify-center gap-2 rounded-md',
-							computedSlPercent > 0 && recommendedLeverage > 0
+							computedSlPercent > 0 && requiredLeverage > 0
 								? 'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px cursor-pointer'
 								: 'bg-border text-text-muted cursor-not-allowed',
 						]"
