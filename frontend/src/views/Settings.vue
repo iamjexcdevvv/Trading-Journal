@@ -1,7 +1,6 @@
 <script setup>
 import StrategiesManager from "../components/StrategiesManager.vue";
 import TagsManager from "../components/TagsManager.vue";
-import AlertsManager from "../components/AlertsManager.vue";
 import ExchangeConnectionsManager from "../components/ExchangeConnectionsManager.vue";
 </script>
 
@@ -26,7 +25,6 @@ import ExchangeConnectionsManager from "../components/ExchangeConnectionsManager
 			<div class="max-w-2xl mx-auto space-y-6">
 				<StrategiesManager />
 				<TagsManager />
-				<AlertsManager />
 				<ExchangeConnectionsManager />
 			</div>
 		</div>
