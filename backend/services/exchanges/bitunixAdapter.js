@@ -64,12 +64,14 @@ async function getOpenPositions(creds) {
 }
 
 async function getFillsSince(creds, symbol, sinceMs) {
-    const trades = await signedRequest('GET', '/api/v1/futures/trade/get_history_trades', {
+    const result = await signedRequest('GET', '/api/v1/futures/trade/get_history_trades', {
         symbol,
         startTime: sinceMs,
         limit: 100
     }, null, creds);
-    return (trades || []).map(t => ({
+    const trades = Array.isArray(result) ? result : result?.tradeList;
+    if (!Array.isArray(trades)) throw new Error('Unexpected Bitunix trade history response');
+    return trades.map(t => ({
         price: parseFloat(t.price),
         qty: parseFloat(t.qty),
         pnl: parseFloat(t.realizedPNL),
