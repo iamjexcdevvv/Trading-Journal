@@ -107,14 +107,15 @@ router.beforeEach(async (to, from, next) => {
 			if (res.ok) {
 				const { accessToken } = await res.json();
 				setToken(accessToken);
-				next();
+			} else {
+				next("/login");
 				return;
 			}
 		} catch (err) {
 			console.error("Failed to refresh token:", err);
+			next("/login");
+			return;
 		}
-		next("/login");
-		return;
 	}
 
 	if (to.meta.requiresAdmin) {
