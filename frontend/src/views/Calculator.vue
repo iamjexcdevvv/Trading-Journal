@@ -1,14 +1,8 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
 import {
-	ArrowUpRight,
-	ArrowDownRight,
-	Calculator,
-	Check,
 	DollarSign,
 	Percent,
-	Plus,
 	Link2,
 	Coins,
 	Layers,
@@ -16,111 +10,24 @@ import {
 	PenLine,
 	Search,
 } from "lucide-vue-next";
-import { useStrategies } from "../composables/useStrategies.js";
 import { useExchangeSymbols, useLivePrice } from "../composables/useMarketData.js";
 
-const router = useRouter();
-const { strategiesByDirection } = useStrategies();
+defineOptions({ name: "ValueAtRiskCalculator" });
 
-// Input states
-const symbol = ref("");
 const capital = ref(1000);
-const riskAmount = ref(10);
 const riskPercent = ref(1);
-const direction = ref("Long");
-const strategy = ref("");
-
-// Stop loss state
-const stopLossType = ref("percent"); // 'percent' | 'price'
-const stopLossPercent = ref(2);
 const entryPrice = ref(100);
 const stopPrice = ref(98);
-
-// Margin state
 const marginAllocated = ref(100);
 
-// Take profit state
-const tpType = ref("rr"); // 'rr' | 'price'
-const rrRatio = ref(2);
-const tpPrice = ref(104);
-
-// Keep Risk Amount and Risk Percent in sync
-watch(capital, (newCap) => {
-	if (newCap <= 0) return;
-	riskAmount.value = Number(((newCap * riskPercent.value) / 100).toFixed(2));
+const riskAmount = computed(() => {
+	if (capital.value <= 0 || riskPercent.value <= 0) return 0;
+	return Number(((capital.value * riskPercent.value) / 100).toFixed(2));
 });
 
-const onRiskAmountChange = () => {
-	if (capital.value > 0) {
-		riskPercent.value = Number(((riskAmount.value / capital.value) * 100).toFixed(2));
-	}
-};
-
-const onRiskPercentChange = () => {
-	riskAmount.value = Number(((capital.value * riskPercent.value) / 100).toFixed(2));
-};
-
-// Sync Stop Price if stopLossPercent is changed while in price mode
-const syncStopPrice = () => {
-	if (entryPrice.value <= 0) return;
-	if (direction.value === "Long") {
-		stopPrice.value = Number((entryPrice.value * (1 - stopLossPercent.value / 100)).toFixed(4));
-	} else {
-		stopPrice.value = Number((entryPrice.value * (1 + stopLossPercent.value / 100)).toFixed(4));
-	}
-};
-
-// Sync TP Price if R:R or Entry is changed
-const syncTpPrice = () => {
-	if (entryPrice.value <= 0) return;
-	const slDist = Math.abs(entryPrice.value - stopPrice.value);
-	if (direction.value === "Long") {
-		tpPrice.value = Number((entryPrice.value + slDist * rrRatio.value).toFixed(4));
-	} else {
-		tpPrice.value = Number((entryPrice.value - slDist * rrRatio.value).toFixed(4));
-	}
-};
-
-// Computations
 const computedSlPercent = computed(() => {
-	if (stopLossType.value === "percent") {
-		return stopLossPercent.value || 0;
-	} else {
-		if (!entryPrice.value || !stopPrice.value || entryPrice.value === stopPrice.value) return 0;
-		return Number(
-			((Math.abs(entryPrice.value - stopPrice.value) / entryPrice.value) * 100).toFixed(2),
-		);
-	}
-});
-
-const computedRrRatio = computed(() => {
-	if (tpType.value === "rr") {
-		return rrRatio.value || 0;
-	} else {
-		if (!entryPrice.value || !tpPrice.value || !stopPrice.value) return 0;
-		const slDist = Math.abs(entryPrice.value - stopPrice.value);
-		if (slDist === 0) return 0;
-
-		if (direction.value === "Long") {
-			return Number(((tpPrice.value - entryPrice.value) / slDist).toFixed(2));
-		} else {
-			return Number(((entryPrice.value - tpPrice.value) / slDist).toFixed(2));
-		}
-	}
-});
-
-const computedTpPrice = computed(() => {
-	if (tpType.value === "price") {
-		return tpPrice.value || 0;
-	} else {
-		if (entryPrice.value <= 0 || computedSlPercent.value <= 0) return 0;
-		const pct = computedSlPercent.value * computedRrRatio.value;
-		if (direction.value === "Long") {
-			return Number((entryPrice.value * (1 + pct / 100)).toFixed(4));
-		} else {
-			return Number((entryPrice.value * (1 - pct / 100)).toFixed(4));
-		}
-	}
+	if (entryPrice.value <= 0 || stopPrice.value < 0 || entryPrice.value === stopPrice.value) return 0;
+	return (Math.abs(entryPrice.value - stopPrice.value) / entryPrice.value) * 100;
 });
 
 const positionSizeUsd = computed(() => {
@@ -129,23 +36,9 @@ const positionSizeUsd = computed(() => {
 	return Number((riskAmount.value / (sl / 100)).toFixed(2));
 });
 
-const positionSizeUnits = computed(() => {
-	if (entryPrice.value <= 0 || positionSizeUsd.value <= 0) return 0;
-	return Number((positionSizeUsd.value / entryPrice.value).toFixed(4));
-});
-
 const requiredLeverage = computed(() => {
 	if (marginAllocated.value <= 0 || positionSizeUsd.value <= 0) return 0;
 	return Number((positionSizeUsd.value / marginAllocated.value).toFixed(1));
-});
-
-const expectedProfitUsd = computed(() => {
-	return Number((riskAmount.value * computedRrRatio.value).toFixed(2));
-});
-
-const returnOnMargin = computed(() => {
-	if (marginAllocated.value <= 0) return 0;
-	return Number(((expectedProfitUsd.value / marginAllocated.value) * 100).toFixed(1));
 });
 
 // --- Lot Size Calculator ---
@@ -222,43 +115,6 @@ const lsPositionValueUsd = computed(() => {
 	return Number((lotSize.value * lsContractSize.value * lsEntryPrice.value).toFixed(2));
 });
 
-// Watch type switches to sync prices
-watch(stopLossType, (type) => {
-	if (type === "price") {
-		syncStopPrice();
-	}
-});
-
-watch(tpType, (type) => {
-	if (type === "price") {
-		syncTpPrice();
-	}
-});
-
-// Export to Journal
-const logTrade = () => {
-	const notesStr = `[Calculator Trade Plan]
-Capital: $${capital.value} | Risk: $${riskAmount.value} (${riskPercent.value}%)
-Entry: $${entryPrice.value} | SL: $${stopLossType.value === "price" ? stopPrice.value : stopLossPercent.value + "%"} (${computedSlPercent.value.toFixed(2)}%)
-Position Size: $${positionSizeUsd.value} (${positionSizeUnits.value} units)
-Required Leverage: ${requiredLeverage.value}x | Margin: $${marginAllocated.value}
-Target TP: $${computedTpPrice.value} (${computedRrRatio.value.toFixed(1)}R)
-Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
-
-	router.push({
-		path: "/trade-logging",
-		query: {
-			symbol: symbol.value.trim().toUpperCase(),
-			direction: direction.value,
-			strategy: strategy.value,
-			entryPrice: entryPrice.value,
-			rMultiple: computedRrRatio.value,
-			notes: notesStr,
-			pnl: "",
-			autoOpen: "true",
-		},
-	});
-};
 </script>
 
 <template>
@@ -293,62 +149,8 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 					>
 				</div>
 
-				<!-- Asset Symbol & Direction -->
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div class="flex flex-col gap-1.5">
-						<label
-							for="calc-symbol"
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Symbol</label
-						>
-						<input
-							id="calc-symbol"
-							v-model="symbol"
-							type="text"
-							placeholder="e.g. BTCUSDT"
-							class="bg-transparent border border-border px-3 py-2 font-mono text-sm tracking-wider uppercase text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-						/>
-					</div>
-					<div class="flex flex-col gap-1.5 md:col-span-2">
-						<span
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Direction</span
-						>
-						<div
-							class="grid grid-cols-2 border border-border rounded-md overflow-hidden"
-						>
-							<button
-								type="button"
-								@click="direction = 'Long'"
-								:class="[
-									'flex items-center cursor-pointer justify-center gap-2 py-2 font-mono text-xs tracking-widest uppercase transition-colors duration-100 border-r border-border',
-									direction === 'Long'
-										? 'bg-success/15 text-success'
-										: 'text-text-muted hover:bg-surface-hover hover:text-text-main',
-								]"
-							>
-								<ArrowUpRight :size="14" />
-								Long
-							</button>
-							<button
-								type="button"
-								@click="direction = 'Short'"
-								:class="[
-									'flex items-center cursor-pointer justify-center gap-2 py-2 font-mono text-xs tracking-widest uppercase transition-colors duration-100',
-									direction === 'Short'
-										? 'bg-danger/15 text-danger'
-										: 'text-text-muted hover:bg-surface-hover hover:text-text-main',
-								]"
-							>
-								<ArrowDownRight :size="14" />
-								Short
-							</button>
-						</div>
-					</div>
-				</div>
-
 				<!-- Capital & Risk Setup -->
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border/40 pt-4">
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div class="flex flex-col gap-1.5">
 						<label
 							for="calc-capital"
@@ -372,28 +174,6 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 					</div>
 					<div class="flex flex-col gap-1.5">
 						<label
-							for="calc-risk-amt"
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Risk Amount ($)</label
-						>
-						<div class="relative">
-							<DollarSign
-								:size="12"
-								class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted/60"
-							/>
-							<input
-								id="calc-risk-amt"
-								v-model.number="riskAmount"
-								type="number"
-								step="0.1"
-								min="0.1"
-								@input="onRiskAmountChange"
-								class="w-full bg-transparent border border-border pl-6 pr-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-							/>
-						</div>
-					</div>
-					<div class="flex flex-col gap-1.5">
-						<label
 							for="calc-risk-pct"
 							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
 							>Risk Percentage (%)</label
@@ -409,7 +189,6 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 								type="number"
 								step="0.05"
 								min="0.01"
-								@input="onRiskPercentChange"
 								class="w-full bg-transparent border border-border pl-6 pr-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
 							/>
 						</div>
@@ -418,83 +197,10 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 
 				<!-- Stop Loss Settings -->
 				<div class="flex flex-col gap-3 border-t border-border/40 pt-4">
-					<div class="flex items-center justify-between">
-						<span
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Stop Loss Config</span
-						>
-						<div class="flex gap-2 font-mono text-[9px]">
-							<button
-								type="button"
-								@click="stopLossType = 'percent'"
-								:class="[
-									'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider',
-									stopLossType === 'percent'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								Percentage
-							</button>
-							<button
-								type="button"
-								@click="stopLossType = 'price'"
-								:class="[
-									'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider',
-									stopLossType === 'price'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								Price points
-							</button>
-						</div>
-					</div>
-
-					<!-- Stop Loss Input Options -->
-					<div
-						v-if="stopLossType === 'percent'"
-						class="grid grid-cols-1 md:grid-cols-2 gap-4"
+					<span class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
+						>Entry and Stop Loss</span
 					>
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="calc-sl-pct"
-								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-								>Stop Loss Distance (%)</label
-							>
-							<div class="relative">
-								<Percent
-									:size="12"
-									class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted/60"
-								/>
-								<input
-									id="calc-sl-pct"
-									v-model.number="stopLossPercent"
-									type="number"
-									step="0.1"
-									min="0.01"
-									class="w-full bg-transparent border border-border pl-6 pr-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-								/>
-							</div>
-						</div>
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="calc-entry-ref"
-								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-								>Reference Entry Price ($)</label
-							>
-							<input
-								id="calc-entry-ref"
-								v-model.number="entryPrice"
-								type="number"
-								step="0.0001"
-								min="0.0001"
-								class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-							/>
-						</div>
-					</div>
-
-					<div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="flex flex-col gap-1.5">
 							<label
 								for="calc-entry-pr"
@@ -529,7 +235,7 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 				</div>
 
 				<!-- Collateral / Margin Allocation -->
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border/40 pt-4">
+				<div class="grid grid-cols-1 gap-4 border-t border-border/40 pt-4">
 					<div class="flex flex-col gap-1.5">
 						<label
 							for="calc-margin"
@@ -553,103 +259,6 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 						<span class="text-[10px] text-text-muted leading-tight"
 							>Money committed as margin. Used to calculate required leverage.</span
 						>
-					</div>
-
-					<!-- Strategy Tag Select -->
-					<div class="flex flex-col gap-1.5">
-						<label
-							for="calc-strategy"
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Strategy Tag (Optional)</label
-						>
-						<select
-							id="calc-strategy"
-							v-model="strategy"
-							class="bg-transparent border border-border px-3 py-2 font-sans text-xs text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-						>
-							<option value="" class="bg-background text-text-muted">
-								Select Strategy...
-							</option>
-							<option
-								v-for="s in strategiesByDirection[direction] || []"
-								:key="s"
-								:value="s"
-								class="bg-background text-text-main"
-							>
-								{{ s }}
-							</option>
-						</select>
-					</div>
-				</div>
-
-				<!-- Take Profit Target Planner -->
-				<div class="flex flex-col gap-3 border-t border-border/40 pt-4">
-					<div class="flex items-center justify-between">
-						<span
-							class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-							>Take Profit Planner (Optional)</span
-						>
-						<div class="flex gap-2 font-mono text-[9px]">
-							<button
-								type="button"
-								@click="tpType = 'rr'"
-								:class="[
-									'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider',
-									tpType === 'rr'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								R:R Multiple
-							</button>
-							<button
-								type="button"
-								@click="tpType = 'price'"
-								:class="[
-									'px-2 py-0.5 border rounded transition-colors uppercase tracking-wider',
-									tpType === 'price'
-										? 'border-primary text-primary bg-primary/10'
-										: 'border-border text-text-muted hover:text-text-main',
-								]"
-							>
-								TP Price
-							</button>
-						</div>
-					</div>
-
-					<div v-if="tpType === 'rr'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="calc-rr"
-								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-								>Target R:R Ratio</label
-							>
-							<input
-								id="calc-rr"
-								v-model.number="rrRatio"
-								type="number"
-								step="0.5"
-								min="0.1"
-								class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-							/>
-						</div>
-					</div>
-					<div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="calc-tp-pr"
-								class="font-mono text-[10px] tracking-widest uppercase text-text-muted"
-								>Take Profit Price ($)</label
-							>
-							<input
-								id="calc-tp-pr"
-								v-model.number="tpPrice"
-								type="number"
-								step="0.0001"
-								min="0.0001"
-								class="bg-transparent border border-border px-3 py-2 font-mono text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
-							/>
-						</div>
 					</div>
 				</div>
 
@@ -909,80 +518,6 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 							</div>
 						</div>
 
-						<!-- Financial Sizing Breakdown -->
-						<div class="grid grid-cols-2 gap-4">
-							<div class="bg-background/20 p-3 border border-border/40 rounded-md">
-								<p
-									class="font-mono text-[9px] text-text-muted uppercase tracking-wider"
-								>
-									Margin Used
-								</p>
-								<p class="text-lg font-mono font-bold text-text-main mt-0.5">
-									${{ marginAllocated }}
-								</p>
-							</div>
-							<div class="bg-background/20 p-3 border border-border/40 rounded-md">
-								<p
-									class="font-mono text-[9px] text-text-muted uppercase tracking-wider"
-								>
-									Risk Amount
-								</p>
-								<p class="text-lg font-mono font-bold text-danger mt-0.5">
-									${{ riskAmount }}
-								</p>
-							</div>
-						</div>
-
-						<!-- Take Profit Estimates -->
-						<div
-							v-if="computedSlPercent > 0"
-							class="bg-background/30 p-4 border border-border/60 rounded-md flex flex-col gap-2"
-						>
-							<p
-								class="font-mono text-[10px] text-text-muted uppercase tracking-wider border-b border-border/40 pb-1.5"
-							>
-								Take Profit Sizing
-							</p>
-
-							<div class="grid grid-cols-2 gap-4 font-mono text-xs">
-								<div>
-									<span class="text-text-muted text-[10px]">Target TP Price</span>
-									<p class="font-bold text-text-main mt-0.5">
-										${{
-											computedTpPrice.toLocaleString(undefined, {
-												minimumFractionDigits: 2,
-												maximumFractionDigits: 4,
-											})
-										}}
-									</p>
-								</div>
-								<div>
-									<span class="text-text-muted text-[10px]">Expected Profit</span>
-									<p class="font-bold text-success mt-0.5">
-										+${{ expectedProfitUsd }}
-									</p>
-								</div>
-							</div>
-
-							<div
-								class="grid grid-cols-2 gap-4 font-mono text-xs border-t border-border/30 pt-2 mt-1"
-							>
-								<div>
-									<span class="text-text-muted text-[10px]">Reward Multiple</span>
-									<p class="font-bold text-text-main mt-0.5">
-										{{ computedRrRatio.toFixed(2) }}R
-									</p>
-								</div>
-								<div>
-									<span class="text-text-muted text-[10px]"
-										>Return on Margin</span
-									>
-									<p class="font-bold text-success mt-0.5">
-										+{{ returnOnMargin }}%
-									</p>
-								</div>
-							</div>
-						</div>
 						<!-- Lot Size Result -->
 						<div
 							class="bg-background/30 p-4 border border-border/60 rounded-md flex flex-col gap-2"
@@ -1025,22 +560,6 @@ Est. Profit: $${expectedProfitUsd.value} (${returnOnMargin.value}% RoM)`;
 							</div>
 						</div>
 					</div>
-
-					<!-- Log Trade Integration Button -->
-					<button
-						type="button"
-						@click="logTrade"
-						:disabled="computedSlPercent <= 0 || requiredLeverage <= 0"
-						:class="[
-							'w-full py-3.5 font-heading font-bold text-xs tracking-widest uppercase transition-all duration-100 flex items-center justify-center gap-2 rounded-md',
-							computedSlPercent > 0 && requiredLeverage > 0
-								? 'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px cursor-pointer'
-								: 'bg-border text-text-muted cursor-not-allowed',
-						]"
-					>
-						<Plus :size="14" />
-						Log Planned Trade →
-					</button>
 				</div>
 			</div>
 		</div>
