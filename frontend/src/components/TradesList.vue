@@ -306,7 +306,7 @@ const handleEscape = (e) => {
 									type="button"
 									@click.stop="$emit('edit', trade)"
 									:data-testid="`edit-trade-btn-${trade.id}`"
-									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
+									class="inline-flex items-center justify-center w-11 h-11 sm:w-7 sm:h-7 text-text-muted hover:text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-primary transition-colors duration-100"
 									aria-label="Edit trade"
 								>
 									<Pencil :size="14" :stroke-width="2" />
@@ -315,7 +315,7 @@ const handleEscape = (e) => {
 									type="button"
 									@click.stop="$emit('delete', trade.id, trade._id)"
 									:data-testid="`delete-trade-btn-${trade.id}`"
-									class="inline-flex items-center justify-center w-7 h-7 text-text-muted hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all duration-100"
+									class="inline-flex items-center justify-center w-11 h-11 sm:w-7 sm:h-7 text-text-muted hover:text-danger hover:bg-danger/10 focus-visible:outline focus-visible:outline-primary transition-colors duration-100"
 									aria-label="Delete trade"
 								>
 									<Trash2 :size="14" :stroke-width="2" />
