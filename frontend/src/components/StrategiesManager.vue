@@ -117,14 +117,17 @@ watch(
 					class="flex items-center justify-between px-3 py-2 bg-surface/30 border border-border rounded"
 				>
 					<span class="font-sans text-sm text-text-main">{{ strategy.name }}</span>
+					<span v-if="strategy.isGlobal" class="font-mono text-[10px] text-text-muted">Global</span>
 					<div class="flex items-center gap-2">
 						<button
+							v-if="!strategy.isGlobal"
 							@click="handleEdit(strategy)"
 							class="p-1 text-text-muted hover:text-text-main transition-colors"
 						>
 							<Edit2 :size="12" :stroke-width="2" />
 						</button>
 						<button
+							v-if="!strategy.isGlobal"
 							@click="handleDelete(strategy._id)"
 							class="p-1 text-text-muted hover:text-danger transition-colors"
 						>
@@ -151,14 +154,17 @@ watch(
 					class="flex items-center justify-between px-3 py-2 bg-surface/30 border border-border rounded"
 				>
 					<span class="font-sans text-sm text-text-main">{{ strategy.name }}</span>
+					<span v-if="strategy.isGlobal" class="font-mono text-[10px] text-text-muted">Global</span>
 					<div class="flex items-center gap-2">
 						<button
+							v-if="!strategy.isGlobal"
 							@click="handleEdit(strategy)"
 							class="p-1 text-text-muted hover:text-text-main transition-colors"
 						>
 							<Edit2 :size="12" :stroke-width="2" />
 						</button>
 						<button
+							v-if="!strategy.isGlobal"
 							@click="handleDelete(strategy._id)"
 							class="p-1 text-text-muted hover:text-danger transition-colors"
 						>

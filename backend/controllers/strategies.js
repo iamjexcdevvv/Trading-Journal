@@ -1,6 +1,7 @@
 const { saveStrategy, getStrategiesByUserId, updateStrategyById, deleteStrategyById } = require('../models/strategies');
 const { getUserById } = require('../models/users');
 const Joi = require('joi');
+const { withGlobalStrategies, isGlobalPlaybookId } = require('../services/premadePlaybook');
 
 const strategySchema = Joi.object({
     name: Joi.string().required(),
@@ -43,7 +44,7 @@ async function getUserStrategies(req, res) {
 
     try {
         const strategies = await getStrategiesByUserId(user._id);
-        res.status(200).json(strategies);
+        res.status(200).json(withGlobalStrategies(strategies));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -51,6 +52,9 @@ async function getUserStrategies(req, res) {
 
 async function deleteStrategy(req, res) {
   try {
+        if (isGlobalPlaybookId(req.params.id)) {
+            return res.status(403).json({ error: 'Global strategies are read-only' });
+        }
         const removedStrategy = await deleteStrategyById(req.params.id, req.user._id);
         if (!removedStrategy) {
             return res.status(404).json({ error: 'Strategy not found' });
@@ -63,6 +67,9 @@ async function deleteStrategy(req, res) {
 
 async function updateStrategy(req, res) {
     try {
+        if (isGlobalPlaybookId(req.params.id)) {
+            return res.status(403).json({ error: 'Global strategies are read-only' });
+        }
         const { error } = strategySchema.validate(req.body);
         if (error) {
             return res.status(400).json({ error: error.details[0].message });

@@ -4,6 +4,7 @@ import { Plus, Trash2, Edit2, X, ListChecks } from "lucide-vue-next";
 import { useSetups } from "../composables/useSetups.js";
 import { useStrategies } from "../composables/useStrategies.js";
 import Loading from "./Loading.vue";
+import { normalizeStrategyName } from "../utils/strategyNames.js";
 
 const { setups, createSetup, updateSetup, deleteSetup, isLoading } = useSetups();
 const { strategies } = useStrategies();
@@ -17,10 +18,10 @@ const strategyNames = computed(() => [...new Set((strategies.value || []).map((s
 const usedStrategyNames = computed(() => new Set(
 	(setups.value || [])
 		.filter((s) => !editingSetup.value || s._id !== editingSetup.value._id)
-		.map((s) => s.name)
+		.map((s) => normalizeStrategyName(s.name))
 ));
 const availableStrategyNames = computed(() =>
-	strategyNames.value.filter((name) => !usedStrategyNames.value.has(name))
+	strategyNames.value.filter((name) => !usedStrategyNames.value.has(normalizeStrategyName(name)))
 );
 
 const isModalOpen = ref(false);
@@ -134,16 +135,19 @@ const handleDelete = (id) => {
 				<div class="flex items-center justify-between">
 					<span class="font-sans text-sm text-text-main">{{ setup.name }}</span>
 					<div class="flex items-center gap-2">
+						<span v-if="setup.isGlobal" class="font-mono text-[10px] text-text-muted">Global</span>
 						<span class="font-mono text-[10px] text-text-muted tracking-widest uppercase">
 							{{ (setup.items || []).length }} {{ (setup.items || []).length === 1 ? 'item' : 'items' }}
 						</span>
 						<button
+							v-if="!setup.isGlobal"
 							@click="handleEdit(setup)"
 							class="p-1 text-text-muted hover:text-text-main transition-colors"
 						>
 							<Edit2 :size="12" :stroke-width="2" />
 						</button>
 						<button
+							v-if="!setup.isGlobal"
 							@click="handleDelete(setup._id)"
 							class="p-1 text-text-muted hover:text-danger transition-colors"
 						>

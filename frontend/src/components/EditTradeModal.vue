@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownRight, Check, X, ListChecks } from "lucide-vue-n
 import { useStrategies } from "../composables/useStrategies.js";
 import { useTags } from "../composables/useTags.js";
 import { useSetups } from "../composables/useSetups.js";
+import { normalizeStrategyName } from "../utils/strategyNames.js";
 
 const props = defineProps({
 	isOpen: { type: Boolean, required: true },
@@ -40,8 +41,14 @@ const toggleChecklistItem = (index) => {
 // otherwise a trade whose setup was since deleted/renamed would have its saved
 // checklist silently wiped instead of showing the historical record.
 const onSetupChange = () => {
-	const matched = (setups.value || []).find((s) => s.name === setup.value);
-	checklist.value = (matched?.items || []).map((label) => ({ label, checked: false }));
+	const matched = (setups.value || []).find((s) =>
+		normalizeStrategyName(s.name) === normalizeStrategyName(setup.value)
+	);
+	checklist.value = (matched?.items || []).map((item) =>
+		typeof item === 'string'
+			? { label: item, checked: false, required: true }
+			: { label: item.label, checked: false, required: item.required !== false }
+	);
 };
 
 // Screenshot state
@@ -215,7 +222,7 @@ const onSubmit = () => {
 			screenshot: screenshot.value,
 			tags: [...selectedTags.value],
 			setup: setup.value,
-			checklist: checklist.value.map(({ label, checked }) => ({ label, checked })),
+			checklist: checklist.value.map(({ label, checked, required }) => ({ label, checked, required: required !== false })),
 		}
 	});
 };

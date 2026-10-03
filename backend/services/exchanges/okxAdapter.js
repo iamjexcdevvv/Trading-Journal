@@ -82,6 +82,35 @@ async function getFillsSince(creds, symbol, sinceMs, positionId) {
         }));
 }
 
+async function getClosedTrades(creds, sinceMs, untilMs) {
+    const trades = [];
+    let after;
+    for (let page = 0; page < 100; page += 1) {
+        const rows = await signedRequest('GET', '/api/v5/account/positions-history', {
+            instType: 'SWAP', limit: 100, ...(after ? { after } : {}),
+        }, creds);
+        if (!Array.isArray(rows)) throw new Error('Invalid OKX position history');
+        if (!rows.length) break;
+        const times = rows.map(row => Number(row.uTime));
+        if (!times.every(Number.isFinite)) throw new Error('Invalid OKX history timestamp');
+        for (const row of rows) {
+            const closedAt = Number(row.uTime);
+            if (closedAt < sinceMs || closedAt > untilMs || !['2', '3', '6'].includes(String(row.type))) continue;
+            trades.push({ historyId: `${row.posId}:${row.cTime}:${row.uTime}`, sourceExternalId: row.posId,
+                symbol: row.instId, direction: row.direction === 'long' || row.posSide === 'long' ? 'Long'
+                    : row.direction === 'short' || row.posSide === 'short' ? 'Short' : null,
+                openedAt: Number(row.cTime), closedAt, entryPrice: Number(row.openAvgPx),
+                exitPrice: Number(row.closeAvgPx), qty: Number(row.closeTotalPos),
+                pnl: Number(row.pnl), fee: Number(row.fee), leverage: row.lever ? Number(row.lever) : null });
+        }
+        const oldest = Math.min(...times);
+        if (oldest < sinceMs || rows.length < 100) break;
+        if ((after && oldest >= Number(after)) || page === 99) throw new Error('Invalid OKX history pagination');
+        after = String(oldest);
+    }
+    return trades;
+}
+
 function connectStream(creds, { onPositionUpdate, onError }) {
     let ws = null;
     let pingTimer = null;
@@ -156,5 +185,6 @@ module.exports = {
     testConnection,
     getOpenPositions,
     getFillsSince,
+    getClosedTrades,
     connectStream
 };

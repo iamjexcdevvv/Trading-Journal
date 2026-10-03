@@ -71,6 +71,17 @@ export function useExchangeConnections() {
 		},
 	});
 
+	const importHistoryMutation = useMutation({
+		mutationFn: (id) => apiFetch(`${apiUrl}/api/connections/${id}/import-history`, {
+			method: 'POST', credentials: 'include',
+		}),
+		// Refresh even after partial failure; already imported records remain usable.
+		onSettled: () => Promise.all([
+			queryClient.invalidateQueries({ queryKey: ['connections'] }),
+			queryClient.invalidateQueries({ queryKey: ['trades'] }),
+		]),
+	});
+
 	return {
 		connections,
 		isLoading,
@@ -85,5 +96,6 @@ export function useExchangeConnections() {
 		syncNowAsync: syncNowMutation.mutateAsync,
 		isSyncing: syncNowMutation.isPending,
 		syncError: syncNowMutation.error,
+		importHistoryAsync: importHistoryMutation.mutateAsync,
 	};
 }

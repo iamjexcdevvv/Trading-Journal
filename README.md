@@ -134,8 +134,9 @@ Production REST requests use the frontend origin and Vercel proxies `/api/*` to 
 
 Start the backend (from the backend directory):
 
-```bash
-npm run dev
+```powershell
+$env:NODE_ENV = 'development'
+npm.cmd start
 ```
 
 Or using nodemon for auto-restart:
@@ -143,6 +144,8 @@ Or using nodemon for auto-restart:
 ```bash
 nodemon index.js
 ```
+
+The backend's `nodemon.json` selects development mode before startup loads `.env.development`. Direct Node or npm startup requires `NODE_ENV` in the shell; setting it only inside the environment file does not select that file. Production deployments must supply `NODE_ENV=production`.
 
 Start the frontend (from the frontend directory):
 
@@ -287,6 +290,29 @@ vue-project/
 1. Build the frontend: `npm run build`
 2. Deploy the `dist` folder to your hosting platform
 3. Set environment variables in the hosting platform's dashboard
+
+## Exchange history import
+
+In Settings, use **Import past 7 days** beside a connected exchange to import completed futures positions closed during the previous seven days. Binance USD-M futures, OKX swaps, and Bitunix futures are supported. Open positions continue to use automatic synchronization.
+
+Imports use the connection's encrypted credentials and existing read-only permission checks. Results show imported, updated, and already-present counts. Matching exchange records are reused; notes, strategy selections, and checklists are preserved. Repeating an import is safe, including after a partial failure. New entries use the `Synced` strategy and can be edited normally.
+
+Binance positions are reconstructed from available fills and current inventory. If a position opened before the returned history, its opening timestamp is unavailable, so the journal date uses the closing timestamp. Its PnL and fees cover fills returned for the seven-day window. Imports fail rather than silently truncate history when pagination limits or invalid responses are encountered. Live exchange credentials are required to verify provider access in a deployed environment.
+
+Adapter references: [Binance account trades](https://developers.binance.com/docs/derivatives/usds-margined-futures/trade/rest-api/Account-Trade-List), [Binance income history](https://developers.binance.com/docs/derivatives/usds-margined-futures/account/rest-api/Get-Income-History), [OKX position history](https://app.okx.com/docs-v5/en/#trading-account-rest-api-get-positions-history), and [Bitunix position history](https://www.bitunix.com/api-docs/futures/position/get_history_positions.html).
+
+## Premade playbook
+
+New and existing accounts see six global strategies automatically when loading strategies or setups:
+
+- Long: TRBO, Bounce Play, Tabo Paakyat.
+- Short: TLSBD, Correction Play, Tabo Pababa.
+
+All six strategies include the supplied confluences, with optional checks marked optional. Tabo Paakyat and Tabo Pababa each have three required checks covering trend, breakout or breakdown, and significant buying or selling volume. No setup is needed to use these in trade logging or view them in the playbook.
+
+Global presets live in a shared backend catalogue and never create user-owned database records. Responses include personal records first, adding global fallbacks only when a matching personal strategy (name and direction) or checklist (name) is absent. Matching ignores surrounding whitespace and letter case; Trendline Breakout matches TRBO, and Trendline Breakdown matches TLSBD. Trade logging and the playbook use the same aliases. Existing personal records and saved trade checklists are preserved. Global entries are read-only; personal entries remain editable. Deploy the backend and frontend changes to make this available to current users; no manual database migration is required.
+
+A matching personal strategy overrides both the global strategy and its global confluences, even when the personal strategy has no checklist yet. Personal checklists remain available. Creating, updating, or deleting a personal strategy refreshes both strategies and confluences in the frontend.
 
 ## Troubleshooting
 

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const WebSocket = require('ws');
 const { fetchJson } = require('./http');
+const { completedPositions } = require('./binanceHistory');
 
 const BASE_URL = 'https://fapi.binance.com';
 const WALLET_BASE_URL = 'https://api.binance.com';
@@ -105,6 +106,47 @@ async function getFillsSince(creds, symbol, sinceMs) {
     }));
 }
 
+async function getClosedTrades(creds, sinceMs, untilMs) {
+    const startingSnapshot = await getOpenPositions(creds);
+    const symbols = new Set();
+    // Income includes commission events, so zero-PnL closes are discoverable too.
+    for (let page = 1; page <= 100; page += 1) {
+        const batch = await signedRequest('GET', '/fapi/v1/income', {
+            startTime: sinceMs, endTime: untilMs, page, limit: 1000,
+        }, creds);
+        if (!Array.isArray(batch)) throw new Error('Invalid Binance income history');
+        batch.forEach(row => { if (row.symbol) symbols.add(row.symbol); });
+        if (batch.length < 1000) break;
+        if (page === 100) throw new Error('Binance history exceeds pagination limit');
+    }
+    const fills = [];
+    for (const symbol of symbols) {
+        let params = { symbol, startTime: sinceMs, endTime: untilMs, limit: 1000 };
+        const ids = new Set();
+        for (let page = 0; page < 100; page += 1) {
+            const batch = await signedRequest('GET', '/fapi/v1/userTrades', params, creds);
+            if (!Array.isArray(batch)) throw new Error('Invalid Binance trade history');
+            for (const row of batch) {
+                if (ids.has(row.id)) throw new Error('Binance history pagination did not advance');
+                ids.add(row.id);
+                if (Number(row.time) >= sinceMs && Number(row.time) <= untilMs) fills.push(row);
+            }
+            if (batch.length < 1000 || Number(batch[batch.length - 1]?.time) > untilMs) break;
+            const lastId = batch[batch.length - 1]?.id;
+            if (!Number.isSafeInteger(lastId) || page === 99) throw new Error('Invalid Binance history pagination');
+            // Binance forbids fromId together with startTime or endTime.
+            params = { symbol, fromId: lastId + 1, limit: 1000 };
+        }
+    }
+    const endingSnapshot = await getOpenPositions(creds);
+    const inventoryKey = positions => JSON.stringify(positions.map(position =>
+        [position.externalId, position.direction, position.qty]).sort((a, b) => a[0].localeCompare(b[0])));
+    if (inventoryKey(startingSnapshot) !== inventoryKey(endingSnapshot)) {
+        throw new Error('Binance positions changed during import; retry');
+    }
+    return completedPositions(fills, endingSnapshot);
+}
+
 async function startListenKey(creds) {
     const { response, data } = await fetchJson(`${BASE_URL}/fapi/v1/listenKey`, {
         method: 'POST',
@@ -191,5 +233,6 @@ module.exports = {
     testConnection,
     getOpenPositions,
     getFillsSince,
+    getClosedTrades,
     connectStream
 };

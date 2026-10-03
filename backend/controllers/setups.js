@@ -1,6 +1,8 @@
 const { saveSetup, getSetupsByUserId, updateSetupById, deleteSetupById } = require('../models/setups');
 const { getUserById } = require('../models/users');
 const Joi = require('joi');
+const { withGlobalSetups, isGlobalPlaybookId } = require('../services/premadePlaybook');
+const { getStrategiesByUserId } = require('../models/strategies');
 
 const setupSchema = Joi.object({
     name: Joi.string().required(),
@@ -48,8 +50,10 @@ async function getUserSetups(req, res) {
     }
 
     try {
-        const setups = await getSetupsByUserId(user._id);
-        res.status(200).json(setups);
+        const [setups, strategies] = await Promise.all([
+            getSetupsByUserId(user._id), getStrategiesByUserId(user._id),
+        ]);
+        res.status(200).json(withGlobalSetups(setups, strategies));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -64,6 +68,9 @@ async function deleteSetup(req, res) {
     }
 
     try {
+        if (isGlobalPlaybookId(req.params.id)) {
+            return res.status(403).json({ error: 'Global confluences are read-only' });
+        }
         const removedSetup = await deleteSetupById(req.params.id, user._id);
         if (!removedSetup) {
             return res.status(404).json({ error: 'Setup not found' });
@@ -88,6 +95,9 @@ async function updateSetup(req, res) {
     }
 
     try {
+        if (isGlobalPlaybookId(req.params.id)) {
+            return res.status(403).json({ error: 'Global confluences are read-only' });
+        }
         const updatedSetup = await updateSetupById(req.params.id, user._id, req.body);
         if (!updatedSetup) {
             return res.status(404).json({ error: 'Setup not found' });

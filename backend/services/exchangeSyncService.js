@@ -3,6 +3,7 @@ const { ExchangeConnection, updateConnectionStatus, updateLastSyncedAt } = requi
 const { decrypt } = require('../utils/encryption');
 const { getAdapter } = require('./exchanges');
 const crypto = require('node:crypto');
+const mongoose = require('mongoose');
 
 let io = null;
 const streamHandles = new Map(); // connectionId -> { stop() }
@@ -92,6 +93,7 @@ async function closePosition(connection, trade) {
     const lastFill = closingFills[closingFills.length - 1];
 
     const updated = await closeSyncedTrade(trade._id, connection.userId, {
+        closedAt: new Date(lastFill.time),
         exitPrice: lastFill ? lastFill.price : trade.entryPrice,
         pnl,
         fee
@@ -207,6 +209,88 @@ function sweepConnection(connection) {
     return withConnectionLock(connection._id, () => sweepConnectionUnlocked(connection));
 }
 
+const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function validateHistoricalTrade(trade) {
+    if (!trade || !trade.historyId || !trade.sourceExternalId || !trade.symbol ||
+        !['Long', 'Short'].includes(trade.direction) ||
+        !Number.isFinite(trade.closedAt) || trade.closedAt <= 0 ||
+        (trade.openedAt != null && (!Number.isFinite(trade.openedAt) || trade.openedAt <= 0 || trade.openedAt > trade.closedAt)) ||
+        !['entryPrice', 'exitPrice', 'qty'].every(field => Number.isFinite(trade[field]) && trade[field] > 0) ||
+        !['pnl', 'fee'].every(field => Number.isFinite(trade[field])) ||
+        (trade.leverage != null && (!Number.isFinite(trade.leverage) || trade.leverage <= 0))) {
+        throw new Error('Exchange returned invalid trade history');
+    }
+}
+
+function importConnectionHistory(connection) {
+    return withConnectionLock(connection._id, async () => {
+        const untilMs = Date.now();
+        const sinceMs = untilMs - HISTORY_WINDOW_MS;
+        const adapter = getAdapter(connection.exchange);
+        const creds = decryptCreds(connection);
+        if (adapter.assertReadOnly) await adapter.assertReadOnly(creds);
+        const records = await adapter.getClosedTrades(creds, sinceMs, untilMs);
+        if (!Array.isArray(records)) throw new Error('Exchange returned invalid trade history');
+        records.forEach(validateHistoricalTrade);
+        const connectionCount = await ExchangeConnection.countDocuments({
+            userId: connection.userId, exchange: connection.exchange, status: { $ne: 'disabled' },
+        });
+        const connectionScope = connectionCount === 1
+            ? { $or: [{ connectionId: connection._id }, { connectionId: { $exists: false } }] }
+            : { connectionId: connection._id };
+        const summary = { imported: 0, updated: 0, skipped: 0,
+            from: new Date(sinceMs).toISOString(), to: new Date(untilMs).toISOString() };
+        for (const record of records) {
+            if (record.closedAt < sinceMs || record.closedAt > untilMs) continue;
+            const _id = new mongoose.Types.ObjectId(crypto.createHash('sha256')
+                .update(`history:${connection.userId}:${connection._id}:${connection.exchange}:${record.historyId}`)
+                .digest('hex').slice(0, 24));
+            const existing = await Trade.findOne({ userId: connection.userId,
+                exchange: connection.exchange, $and: [connectionScope, { $or: [
+                    { _id },
+                    { symbol: record.symbol, direction: record.direction, $and: [
+                        { $or: [{ sourceExternalId: record.sourceExternalId },
+                            { connectionId: { $exists: false }, externalId: record.sourceExternalId }] },
+                        { $or: [{ closedAt: new Date(record.closedAt) },
+                            { closedAt: { $exists: false }, date: {
+                                $gte: new Date(record.openedAt ?? sinceMs), $lte: new Date(record.closedAt),
+                            } }] },
+                        ],
+                    },
+                ] }],
+            });
+            if (existing?.status === 'closed') { summary.skipped++; continue; }
+            const data = { userId: connection.userId, connectionId: connection._id, exchange: connection.exchange,
+                sourceExternalId: record.sourceExternalId, status: 'closed',
+                symbol: record.symbol, direction: record.direction,
+                entryPrice: record.entryPrice, exitPrice: record.exitPrice, qty: record.qty,
+                pnl: record.pnl, fee: record.fee, leverage: record.leverage,
+                closedAt: new Date(record.closedAt) };
+            if (existing) {
+                const trade = await closeSyncedTrade(existing._id, connection.userId, data);
+                if (trade) { summary.updated++; emitSync(connection.userId, trade); }
+                else summary.skipped++;
+            } else {
+                // Deterministic primary key prevents duplicates even across processes.
+                let result;
+                try {
+                    result = await Trade.updateOne({ _id, userId: connection.userId }, { $setOnInsert: {
+                        ...data, date: new Date(record.openedAt ?? record.closedAt), strategy: 'Synced',
+                        externalId: `${connection._id}:history:${record.historyId}`,
+                    } }, { upsert: true, runValidators: true });
+                } catch (error) {
+                    if (error.code !== 11000 || !await Trade.exists({ _id, userId: connection.userId })) throw error;
+                    result = { upsertedCount: 0 };
+                }
+                if (result.upsertedCount) summary.imported++;
+                else summary.skipped++;
+            }
+        }
+        return summary;
+    });
+}
+
 async function startConnectionSync(connection) {
     try {
         const adapter = getAdapter(connection.exchange);
@@ -287,5 +371,6 @@ module.exports = {
     addConnectionToSync,
     removeConnectionFromSync,
     syncConnectionNow: sweepConnection,
-    _test: { validatePosition, withConnectionLock, handlePositionUpdate }
+    importConnectionHistory,
+    _test: { validatePosition, withConnectionLock, handlePositionUpdate, validateHistoricalTrade }
 };

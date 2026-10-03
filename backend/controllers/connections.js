@@ -9,7 +9,7 @@ const {
 } = require('../models/exchangeConnections');
 const { encrypt } = require('../utils/encryption');
 const { getAdapter, supportedExchanges } = require('../services/exchanges');
-const { addConnectionToSync, removeConnectionFromSync, syncConnectionNow } = require('../services/exchangeSyncService');
+const { addConnectionToSync, removeConnectionFromSync, syncConnectionNow, importConnectionHistory } = require('../services/exchangeSyncService');
 
 const connectionSchema = Joi.object({
     exchange: Joi.string().valid(...supportedExchanges).required(),
@@ -127,9 +127,24 @@ async function syncExchangeConnectionNow(req, res) {
     }
 }
 
+async function importExchangeHistory(req, res) {
+    if (!validId(req.params.id)) return res.status(400).json({ error: 'Invalid connection ID' });
+    const user = await getUserById(req.user._id);
+    if (!user || !user.refreshToken) return res.status(401).json({ error: 'Invalid refresh token' });
+    const connection = await getConnectionById(req.params.id, user._id);
+    if (!connection) return res.status(404).json({ error: 'Connection not found' });
+    if (connection.status === 'disabled') return res.status(409).json({ error: 'This connection is disabled' });
+    try {
+        return res.status(200).json(await importConnectionHistory(connection));
+    } catch {
+        return res.status(502).json({ error: 'Trade history import failed. Some trades may already have been imported; retry safely.' });
+    }
+}
+
 module.exports = {
     createExchangeConnection,
     getExchangeConnections,
     deleteExchangeConnection,
-    syncExchangeConnectionNow
+    syncExchangeConnectionNow,
+    importExchangeHistory
 };

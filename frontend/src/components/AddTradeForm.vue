@@ -6,6 +6,7 @@ import { useStrategies } from "../composables/useStrategies.js";
 import { useTags } from "../composables/useTags.js";
 import { useSetups } from "../composables/useSetups.js";
 import { useTradingRules } from "../composables/useTradingRules.js";
+import { normalizeStrategyName } from "../utils/strategyNames.js";
 
 const route = useRoute();
 const { strategiesByDirection } = useStrategies();
@@ -47,11 +48,12 @@ const toggleRulesChecklistItem = (index) => {
 
 // A strategy has at most one setup (enforced in SetupsManager), so picking a strategy
 // is enough to find its confluences — no separate setup picker needed.
-const matchedSetup = computed(() => (setups.value || []).find((s) => s.name === strategy.value));
+const matchedSetup = computed(() => (setups.value || []).find((s) =>
+	normalizeStrategyName(s.name) === normalizeStrategyName(strategy.value)
+));
 
 // Rebuild the checklist whenever the chosen strategy (and therefore its setup) changes
-watch(strategy, (newStrategy) => {
-	const matched = (setups.value || []).find((s) => s.name === newStrategy);
+watch(matchedSetup, (matched) => {
 	// Older setups may still have plain-string items (pre-migration) — normalize here.
 	checklist.value = (matched?.items || []).map((item) =>
 		typeof item === "string"

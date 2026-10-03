@@ -4,6 +4,8 @@
 //   testConnection(creds) -> throws if credentials are invalid
 //   getOpenPositions(creds) -> [{ externalId, symbol, direction, entryPrice, qty, leverage, openedAt? }]
 //   getFillsSince(creds, symbol, sinceMs, externalId) -> [{ price, qty, pnl, fee, time, side }]
+//   getClosedTrades(creds, sinceMs, untilMs) -> completed position records with stable
+//     historyId, sourceExternalId, symbol, direction, openedAt, closedAt, prices, qty, pnl, fee.
 //     side is 'Long' | 'Short' | null (null when the exchange doesn't distinguish, e.g. one-way mode)
 //   connectStream(creds, { onPositionUpdate, onError }) -> { stop() }   -- only if supportsRealtime
 //     onPositionUpdate receives one position at a time; qty === 0 means that position just closed.

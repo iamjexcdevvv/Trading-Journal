@@ -103,6 +103,35 @@ async function getFillsSince(creds, symbol, sinceMs, positionId) {
     }));
 }
 
+async function getClosedTrades(creds, sinceMs, untilMs) {
+    const trades = [];
+    const ids = new Set();
+    // Bitunix startTime filters creation, not closure. Scan position history so
+    // positions opened before the window but closed within it are not lost.
+    for (let page = 0; page < 100; page += 1) {
+        const result = await signedRequest('GET', '/api/v1/futures/position/get_history_positions', {
+            skip: page * 100, limit: 100,
+        }, null, creds);
+        const rows = result?.positionList;
+        if (!Array.isArray(rows)) throw new Error('Invalid Bitunix position history');
+        for (const row of rows) {
+            if (!row.positionId || ids.has(String(row.positionId))) throw new Error('Invalid Bitunix history pagination');
+            ids.add(String(row.positionId));
+            const closedAt = Number(row.mtime);
+            if (!Number.isFinite(closedAt)) throw new Error('Invalid Bitunix history timestamp');
+            if (closedAt < sinceMs || closedAt > untilMs) continue;
+            trades.push({ historyId: String(row.positionId), sourceExternalId: String(row.positionId),
+                symbol: row.symbol, direction: row.side === 'LONG' ? 'Long' : row.side === 'SHORT' ? 'Short' : null,
+                openedAt: Number(row.ctime), closedAt, entryPrice: Number(row.entryPrice),
+                exitPrice: Number(row.closePrice), qty: Number(row.maxQty),
+                pnl: Number(row.realizedPNL), fee: Number(row.fee), leverage: Number(row.leverage) });
+        }
+        if (rows.length < 100 || (Number.isFinite(Number(result.total)) && (page + 1) * 100 >= Number(result.total))) break;
+        if (page === 99) throw new Error('Bitunix history exceeds pagination limit');
+    }
+    return trades;
+}
+
 module.exports = {
     id: 'bitunix',
     requiresPassphrase: false,
@@ -111,5 +140,6 @@ module.exports = {
     supportsRealtime: false,
     testConnection,
     getOpenPositions,
-    getFillsSince
+    getFillsSince,
+    getClosedTrades
 };

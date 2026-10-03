@@ -7,6 +7,11 @@ const apiUrl = apiBaseUrl;
 
 export function useStrategies() {
 	const queryClient = useQueryClient();
+	// Strategy overrides also change which global confluences are available.
+	const invalidatePlaybook = () => Promise.all([
+		queryClient.invalidateQueries({ queryKey: ['strategies'] }),
+		queryClient.invalidateQueries({ queryKey: ['setups'] }),
+	]);
 
 	// Fetch strategies
 	const { data: strategies, isLoading, isError } = useQuery({
@@ -36,9 +41,7 @@ export function useStrategies() {
 
 			return response;
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries(['strategies']);
-		},
+		onSuccess: invalidatePlaybook,
 	});
 
 	// Update strategy
@@ -53,9 +56,7 @@ export function useStrategies() {
 
 			return response;
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries(['strategies']);
-		},
+		onSuccess: invalidatePlaybook,
 	});
 
 	// Delete strategy
@@ -68,9 +69,7 @@ export function useStrategies() {
 
 			return id;
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries(['strategies']);
-		},
+		onSuccess: invalidatePlaybook,
 	});
 
 	// Group strategies by direction

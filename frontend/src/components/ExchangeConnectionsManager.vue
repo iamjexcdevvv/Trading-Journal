@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
-import { Plus, Trash2, X, Link2, RefreshCw } from "lucide-vue-next";
+import { Plus, Trash2, X, Link2, RefreshCw, Download } from "lucide-vue-next";
 import { useExchangeConnections } from "../composables/useExchangeConnections.js";
 import Loading from "./Loading.vue";
 
@@ -10,6 +10,7 @@ const {
 	createConnectionError,
 	deleteConnectionAsync,
 	syncNowAsync,
+	importHistoryAsync,
 	isLoading,
 	isCreatingConnection,
 	syncError,
@@ -28,6 +29,8 @@ const newApiKey = ref("");
 const newApiSecret = ref("");
 const newPassphrase = ref("");
 const syncingId = ref(null);
+const importingId = ref(null);
+const importResults = ref({});
 
 const selectedExchange = computed(() => EXCHANGES.find((e) => e.id === newExchange.value));
 
@@ -84,8 +87,25 @@ const handleSyncNow = async (id) => {
 	syncingId.value = id;
 	try {
 		await syncNowAsync(id);
+	} catch {
+		// The mutation exposes its error in the connection manager.
 	} finally {
 		syncingId.value = null;
+	}
+};
+
+const handleImportHistory = async (id) => {
+	if (importingId.value) return;
+	importingId.value = id;
+	delete importResults.value[id];
+	try {
+		const result = await importHistoryAsync(id);
+		importResults.value[id] = { error: false,
+			message: `${result.imported} imported, ${result.updated} updated, ${result.skipped} already in journal.` };
+	} catch (error) {
+		importResults.value[id] = { error: true, message: error.message || 'Import failed. Please retry.' };
+	} finally {
+		importingId.value = null;
 	}
 };
 
@@ -130,6 +150,9 @@ const formatDate = (dateString) => {
 			Open and closed futures trades sync into your journal automatically. Only connect a
 			read-only, no-trade, no-withdraw API key. OKX permissions are checked automatically.
 		</p>
+		<p class="font-mono text-[10px] text-text-muted/70 mb-4 leading-relaxed">
+			Import completed futures positions closed in the past 7 days. Existing journal entries are preserved.
+		</p>
 
 		<div v-if="!connections || connections.length === 0" class="text-text-muted/40 font-mono text-xs">
 			No exchanges connected
@@ -137,7 +160,7 @@ const formatDate = (dateString) => {
 		<p v-if="syncError" class="font-mono text-xs text-danger mb-2">
 			{{ syncError.message }}
 		</p>
-		<div v-else class="space-y-2">
+		<div v-if="connections?.length" class="space-y-2">
 			<div
 				v-for="connection in connections"
 				:key="connection._id"
@@ -167,11 +190,24 @@ const formatDate = (dateString) => {
 					<span class="font-mono text-xs text-text-muted">
 						Last synced: {{ formatDate(connection.lastSyncedAt) }}
 					</span>
+					<p v-if="importResults[connection._id]" role="status"
+						:class="['w-full font-mono text-xs', importResults[connection._id].error ? 'text-danger' : 'text-success']">
+						{{ importResults[connection._id].message }}
+					</p>
 				</div>
 				<div class="flex items-center gap-1 self-end sm:self-auto">
 					<button
+						@click="handleImportHistory(connection._id)"
+						:disabled="importingId !== null || syncingId === connection._id || connection.status === 'disabled'"
+						class="flex items-center gap-1 px-2 py-1 text-xs text-text-muted hover:text-primary transition-colors disabled:opacity-40"
+						data-testid="import-exchange-history-btn"
+					>
+						<Download :size="12" :stroke-width="2" />
+						{{ importingId === connection._id ? 'Importing...' : 'Import past 7 days' }}
+					</button>
+					<button
 						@click="handleSyncNow(connection._id)"
-						:disabled="syncingId === connection._id"
+						:disabled="syncingId === connection._id || importingId === connection._id"
 						class="p-1 text-text-muted hover:text-primary transition-colors disabled:opacity-40"
 						title="Sync now"
 					>
@@ -179,6 +215,7 @@ const formatDate = (dateString) => {
 					</button>
 					<button
 						@click="handleDelete(connection._id)"
+						:disabled="importingId === connection._id || syncingId === connection._id"
 						class="p-1 text-text-muted hover:text-danger transition-colors"
 						title="Remove"
 					>

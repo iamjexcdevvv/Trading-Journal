@@ -6,7 +6,8 @@ const {
     createExchangeConnection,
     getExchangeConnections,
     deleteExchangeConnection,
-    syncExchangeConnectionNow
+    syncExchangeConnectionNow,
+    importExchangeHistory
 } = require('../controllers/connections');
 
 router.use(authMiddleware);
@@ -22,5 +23,6 @@ router.post('/', exchangeActionLimiter, createExchangeConnection);
 router.get('/', getExchangeConnections);
 router.delete('/:id', deleteExchangeConnection);
 router.post('/:id/sync', exchangeActionLimiter, syncExchangeConnectionNow);
+router.post('/:id/import-history', exchangeActionLimiter, importExchangeHistory);
 
 module.exports = router;
