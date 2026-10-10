@@ -73,8 +73,10 @@ onUnmounted(() => document.removeEventListener("keydown", handleEscape));
 					<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
 						<div v-for="field in [
 							{ label: 'Date', value: formatDate(trade.date) },
+							{ label: 'Session', value: display(trade.session) },
 							{ label: 'Strategy', value: display(trade.strategy) },
 							{ label: 'Entry', value: formatNumber(trade.entryPrice) },
+							{ label: 'Risk amount', value: trade.riskAmount == null ? '—' : `$${Number(trade.riskAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
 							{ label: 'Exit', value: formatNumber(trade.exitPrice) },
 							{ label: 'RRR used', value: trade.rMultiple == null ? '—' : `${trade.rMultiple}R` },
 							{ label: 'Realized PNL', value: trade.pnl == null ? '—' : `$${Number(trade.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },

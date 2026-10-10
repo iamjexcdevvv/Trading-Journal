@@ -6,6 +6,7 @@ const tradeSchema = new mongoose.Schema({
     closedAt: Date,
     symbol: String,
     direction: String,
+    session: { type: String, enum: ['Sydney', 'Tokyo', 'London', 'New York'] },
     strategy: String,
     setup: String,
     checklist: [{ label: String, checked: Boolean, required: { type: Boolean, default: true }, _id: false }],
@@ -24,6 +25,7 @@ const tradeSchema = new mongoose.Schema({
     entryPrice: Number,
     exitPrice: Number,
     rMultiple: Number,
+    riskAmount: Number,
     qty: Number,
     leverage: Number,
     fee: Number

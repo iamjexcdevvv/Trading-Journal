@@ -19,6 +19,7 @@ const { setups } = useSetups();
 
 const symbol = ref("");
 const direction = ref("Long");
+const session = ref("");
 const strategy = ref("");
 const notes = ref("");
 const mistakes = ref("");
@@ -27,6 +28,7 @@ const pnl = ref("");
 const entryPrice = ref("");
 const exitPrice = ref("");
 const rMultiple = ref("");
+const riskAmount = ref("");
 const selectedTags = ref([]);
 const tradeDate = ref("");
 const setup = ref("");
@@ -111,6 +113,7 @@ watch(
 		if (newTrade) {
 			symbol.value = newTrade.symbol || "";
 			direction.value = newTrade.direction || "Long";
+			session.value = newTrade.session || "";
 			strategy.value = newTrade.strategy || "";
 			notes.value = newTrade.notes || "";
 			mistakes.value = newTrade.mistakes || "";
@@ -119,6 +122,7 @@ watch(
 			entryPrice.value = newTrade.entryPrice !== null && newTrade.entryPrice !== undefined ? newTrade.entryPrice.toString() : "";
 			exitPrice.value = newTrade.exitPrice !== null && newTrade.exitPrice !== undefined ? newTrade.exitPrice.toString() : "";
 			rMultiple.value = newTrade.rMultiple !== null && newTrade.rMultiple !== undefined ? newTrade.rMultiple.toString() : "";
+			riskAmount.value = newTrade.riskAmount !== null && newTrade.riskAmount !== undefined ? newTrade.riskAmount.toString() : "";
 			selectedTags.value = newTrade.tags ? [...newTrade.tags] : [];
 			setup.value = newTrade.setup || "";
 			checklist.value = newTrade.checklist ? newTrade.checklist.map((item) => ({ ...item })) : [];
@@ -199,6 +203,7 @@ const onSubmit = () => {
 	const parsedEntryPrice = entryPrice.value === "" ? null : Number(entryPrice.value);
 	const parsedExitPrice = exitPrice.value === "" ? null : Number(exitPrice.value);
 	const parsedRMultiple = rMultiple.value === "" ? null : Number(rMultiple.value);
+	const parsedRiskAmount = riskAmount.value === "" ? null : Number(riskAmount.value);
 	const cleanedSymbol = symbol.value.trim().toUpperCase();
 	const cleanedNotes = notes.value.trim();
 	const cleanedMistakes = mistakes.value.trim();
@@ -211,6 +216,7 @@ const onSubmit = () => {
 			date: tradeDate.value,
 			symbol: cleanedSymbol,
 			direction: direction.value,
+			session: session.value,
 			strategy: strategy.value,
 			notes: cleanedNotes,
 			mistakes: cleanedMistakes,
@@ -219,6 +225,7 @@ const onSubmit = () => {
 			entryPrice: Number.isFinite(parsedEntryPrice) ? parsedEntryPrice : null,
 			exitPrice: Number.isFinite(parsedExitPrice) ? parsedExitPrice : null,
 			rMultiple: Number.isFinite(parsedRMultiple) ? parsedRMultiple : null,
+			riskAmount: Number.isFinite(parsedRiskAmount) ? parsedRiskAmount : null,
 			screenshot: screenshot.value,
 			tags: [...selectedTags.value],
 			setup: setup.value,
@@ -345,6 +352,15 @@ const onSubmit = () => {
 										Short
 									</button>
 								</div>
+							</div>
+
+							<!-- Session -->
+							<div class="flex flex-col gap-1.5">
+								<label for="edit-session" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Session</label>
+								<select id="edit-session" v-model="session" class="bg-transparent border border-border px-3 py-2.5 font-sans text-sm text-text-main focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100" data-testid="edit-trade-session-select">
+									<option value="" disabled class="bg-background">Select session…</option>
+									<option v-for="option in ['Sydney', 'Tokyo', 'London', 'New York']" :key="option" :value="option" class="bg-background text-text-main">{{ option }}</option>
+								</select>
 							</div>
 
 							<!-- Strategy -->
@@ -484,6 +500,15 @@ const onSubmit = () => {
 								<div class="flex flex-col gap-1.5">
 									<label for="edit-r-multiple" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">RRR Used</label>
 									<input id="edit-r-multiple" v-model="rMultiple" type="number" min="0" step="0.01" inputmode="decimal" placeholder="2.00" class="bg-transparent border border-border px-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" data-testid="edit-trade-r-multiple-input" />
+								</div>
+							</div>
+
+							<!-- Risk Amount -->
+							<div class="flex flex-col gap-1.5">
+								<label for="edit-risk-amount" class="font-mono text-[10px] tracking-widest uppercase text-text-muted">Risk Amount</label>
+								<div class="relative">
+									<span class="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-text-muted/60 pointer-events-none">$</span>
+									<input id="edit-risk-amount" v-model="riskAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" class="w-full bg-transparent border border-border pl-7 pr-3 py-2.5 font-mono text-sm tabular-nums text-text-main placeholder:text-text-muted/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-100" data-testid="edit-trade-risk-amount-input" />
 								</div>
 							</div>
 

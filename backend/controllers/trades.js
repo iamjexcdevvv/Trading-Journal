@@ -7,6 +7,7 @@ const tradeSchema = Joi.object({
     date: Joi.date().iso(),
     symbol: Joi.string().required(),
     direction: Joi.string().valid('Long', 'Short').required(),
+    session: Joi.string().valid('Sydney', 'Tokyo', 'London', 'New York').allow('').optional(),
     strategy: Joi.string().required(),
     setup: Joi.string().allow('').optional(),
     checklist: Joi.array().items(Joi.object({
@@ -26,6 +27,7 @@ const tradeSchema = Joi.object({
     entryPrice: Joi.number().positive().allow(null).optional(),
     exitPrice: Joi.number().positive().allow(null).optional(),
     rMultiple: Joi.number().min(0).allow(null).optional(),
+    riskAmount: Joi.number().min(0).allow(null).optional(),
     screenshot: Joi.string().uri().allow('').optional(),
     tags: Joi.array().items(Joi.string()).optional()
 })

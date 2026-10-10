@@ -157,6 +157,8 @@ const handleEscape = (e) => {
 						>
 							Strategy
 						</th>
+						<th class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium">Session</th>
+						<th class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium">Risk</th>
 						<th
 							class="text-left px-4 py-3 font-mono text-[10px] tracking-widest uppercase text-text-muted font-medium"
 						>
@@ -239,6 +241,8 @@ const handleEscape = (e) => {
 						<td class="px-4 py-3 font-sans text-sm text-text-main whitespace-nowrap align-middle">
 							{{ trade.strategy }}
 						</td>
+						<td class="px-4 py-3 font-mono text-xs text-text-muted whitespace-nowrap">{{ trade.session || '—' }}</td>
+						<td class="px-4 py-3 font-mono text-sm text-text-main whitespace-nowrap">{{ trade.riskAmount == null ? '—' : `$${Number(trade.riskAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }}</td>
 						<td class="px-4 py-3 w-48 min-w-48 max-w-48">
 							<span
 								v-if="trade.notes"
